@@ -1,87 +1,115 @@
-🚀 Pediatric Transplant Follow-up Management Platform (Microservices Architecture)
-📌 Overview
+# 🚀 Pediatric Transplant Follow-up Management Platform
+### Microservices Architecture
 
-This project is a Pediatric Transplant Follow-up Management Platform designed using a modern Microservices Architecture.
+---
 
-It helps healthcare professionals manage pediatric patients after organ transplantation by centralizing medical data and ensuring continuous long-term monitoring.
+## 📌 1. Overview
 
-The system includes independent services such as:
+The **Pediatric Transplant Follow-up Management Platform** is a healthcare information system designed using a modern **Microservices Architecture**.
 
-Prescription Management
+It supports healthcare professionals in managing pediatric patients after organ transplantation by centralizing medical data and ensuring continuous long-term monitoring.
 
-Nutrition Management
+The platform improves:
+- **Treatment adherence**
+- **Medical data organization**
+- **Communication between healthcare providers**
+- **Monitoring of graft health and complications**
 
-Medical Records Management
+---
 
-Medical Tests & Reports (Bilan)
+## 🏗️ 2. System Architecture
 
-Consultation Management
+The application follows a **distributed microservices architecture**:
 
-Vital Parameters Monitoring
+```
+Medical Staff (Doctor / Nurse / Admin)
+                ↓
+        Angular Frontend
+                ↓
+           API Gateway
+                ↓
+   Spring Boot Microservices
+                ↓
+             MySQL Database
+```
 
-Infection Monitoring
+### **Architecture Components**
 
-Hospitalization Management
+| **Component**        | **Description**                                          |
+|----------------------|----------------------------------------------------------|
+| **Angular Frontend** | User interface for doctors, nurses, and administrators   |
+| **API Gateway**      | Single entry point for all client requests               |
+| **Eureka Server**    | Service discovery between microservices                  |
+| **Spring Boot Services** | Independent backend services                         |
+| **Keycloak**         | Authentication & authorization server                    |
+| **MySQL Database**   | Centralized storage for medical data                     |
 
-Graft (Transplant) Monitoring
+---
 
-Long-Term Follow-up Management
+## 🧩 3. Microservices Overview
 
-🏗️ Architecture
+| **Service Name**              | **Description**                                          |
+|-------------------------------|----------------------------------------------------------|
+| **User Service**              | Manages users and integrates with Keycloak               |
+| **Prescription Service**      | Manages medications and immunosuppressive treatments     |
+| **Nutrition Service**         | Manages patient dietary plans and nutritional follow-up  |
+| **Medical Record Service**    | Stores patient history and clinical information          |
+| **Consultation Service**      | Manages medical consultations and appointments           |
+| **Lab Test (Bilan) Service**  | Manages laboratory results and medical reports           |
+| **Vital Parameters Service**  | Tracks blood pressure, weight, temperature, etc.         |
+| **Infection Service**         | Monitors infections and related treatments               |
+| **Hospitalization Service**   | Manages admissions and discharge records                 |
+| **Graft Monitoring Service**  | Monitors graft function and rejection risk               |
+| **Long-Term Follow-up Service** | Ensures continuous monitoring post-transplant          |
 
-The application follows this architecture:
+---
 
-Doctor / Admin / Medical Staff → Angular Frontend → API Gateway → Spring Boot Microservices → Database
+## 🔐 4. Security & Authentication (Keycloak Integration)
 
-Microservices Included
-Service Name	Description
-Prescription Service	Manages patient prescriptions and medications
-Nutrition Service	Manages dietary plans and nutritional monitoring
-Medical Record Service	Manages patient medical history and records
-Lab Test Service	Handles medical tests, lab results, and reports
-Consultation Service	Manages medical consultations and appointments
-Vital Parameters Service	Monitors blood pressure, temperature, weight, etc.
-Infection Service	Tracks infections and related treatments
-Hospitalization Service	Manages hospital admissions and discharge records
-Graft Monitoring Service	Monitors graft function and rejection risks
-Long-Term Follow-up Service	Ensures continuous post-transplant monitoring
-🔐 User Management with Keycloak
+Authentication and authorization are handled using **Keycloak**.
 
-Authentication and authorization are handled using Keycloak, providing:
+### **Security Features**
 
-Secure login and registration
+- ✅ **Secure login & registration**
+- ✅ **Role-Based Access Control (RBAC)**:
+  - `Admin`
+  - `Doctor`
+  - `Nurse`
+- ✅ **JWT token-based authentication**
+- ✅ **Centralized identity management**
+- ✅ **API Gateway protection** for all services
 
-Role-based access control (Admin, Doctor, Nurse)
+---
 
-Token-based authentication (JWT)
+## ⚙️ 5. Technologies Used
 
-Centralized identity management
+### 🔹 Backend
 
-Keycloak is integrated with the API Gateway to secure all backend microservices.
+| **Technology**              | **Purpose**                        |
+|-----------------------------|------------------------------------|
+| **Java 17+**                | Core language                      |
+| **Spring Boot**             | Microservices framework            |
+| **Spring Cloud Gateway**    | API Gateway                        |
+| **Spring Cloud Netflix Eureka** | Service discovery              |
+| **Spring Security**         | Security layer                     |
+| **Keycloak Integration**    | Authentication & authorization     |
 
-⚙️ Technologies Used
-Backend:
+### 🔹 Frontend
 
-Java 17+
+| **Technology**          | **Purpose**                          |
+|-------------------------|--------------------------------------|
+| **Angular**             | SPA frontend framework               |
+| **TypeScript**          | Typed JavaScript                     |
+| **Bootstrap / Angular Material** | UI components & styling     |
 
-Spring Boot
+### 🔹 Database
 
-Spring Cloud Gateway
+| **Technology** | **Purpose**              |
+|----------------|--------------------------|
+| **MySQL**      | Relational data storage  |
 
-Spring Cloud Netflix Eureka (Service Discovery)
+---
 
-Spring Security
+## 🎯 6. Project Objectives
 
-Keycloak Integration
-
-Frontend:
-
-Angular
-
-TypeScript
-
-Bootstrap / Angular Material
-
-Database:
-
-MySQL
+> *(Add your project objectives here)*
