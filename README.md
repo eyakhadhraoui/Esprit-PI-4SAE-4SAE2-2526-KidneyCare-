@@ -95,13 +95,21 @@ Authentication and authorization are handled by **Keycloak**:
 
 ## Contributors
 
-> *(Add contributor names and roles here)*
+| **Name**                    | **Role**                        |
+|-----------------------------|---------------------------------|
+| **Loujain Rouached**        | Software Engineering Student    |
+| **Aya Khadhraoui**          | Software Engineering Student    |
+| **Khadijatou Toumy**        | Software Engineering Student    |
+| **Nour El Houda Jeddi**     | Software Engineering Student    |
+| **Mohamed El Hedi El Kamel**| Software Engineering Student    |
 
 ---
 
 ## Academic Context
 
-> *(Add your university, program, course, or academic year here)*
+This project was developed as part of the **Software Engineering** program at:
+
+> 🎓 **Esprit — École des Ingénieurs**, Tunisia
 
 ---
 
@@ -139,4 +147,4 @@ cd frontend && npm install && ng serve
 
 ## Acknowledgment
 
-> *(Add acknowledgments — supervisors, institutions, or open-source libraries used)*
+We would like to express our sincere gratitude to our supervisor **Ms. Chaima Kaddour** for her guidance and support throughout this project, as well as to **Esprit — École des Ingénieurs** for providing the academic framework that made this work possible.
