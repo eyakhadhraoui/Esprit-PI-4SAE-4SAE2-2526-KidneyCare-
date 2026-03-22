@@ -97,8 +97,8 @@ Authentication and authorization are handled by **Keycloak**:
 
 | **Name**                    | **Role**                        |
 |-----------------------------|---------------------------------|
-| **Loujain Rouached**        | Software Engineering Student    |
-| **Aya Khadhraoui**          | Software Engineering Student    |
+|    **Eya Khadhraoui**       | Software Engineering Student    |
+|    **Loujain Rouached**     | Software Engineering Student    |
 | **Khadijatou Toumy**        | Software Engineering Student    |
 | **Nour El Houda Jeddi**     | Software Engineering Student    |
 | **Mohamed El Hedi El Kamel**| Software Engineering Student    |
