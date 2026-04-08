@@ -1,0 +1,86 @@
+<nav class="rdv-nav">
+  <div class="rdv-logo">🫘 KidneyCare</div>
+  <div class="rdv-nav-links">
+    <a routerLink="/back/dashboard">Dashboard</a>
+    <a routerLink="/back/consultations">Consultations</a>
+    <a routerLink="/back/rapports/new">Rapports</a>
+    <a routerLink="/back/rendezvous/new" class="active">Rendez-vous</a>
+  </div>
+</nav>
+
+<div class="rdv-page">
+  <div class="rdv-breadcrumb">
+    <a routerLink="/back">Accueil</a>
+    <span>›</span>
+    <a routerLink="/back/consultations">Consultations</a>
+    <span>›</span>
+    <span>Nouveau rendez-vous</span>
+  </div>
+
+  <header class="rdv-header">
+    <h1>📅 Nouveau rendez-vous</h1>
+    <p class="rdv-sub">Créer un rendez-vous médical post-greffe</p>
+  </header>
+
+  <div class="rdv-progress">
+    <div class="rdv-progress-head">
+      <span>Progression du formulaire</span>
+      <span [class.rdv-ready]="formProgress === 100">
+        {{ formProgress === 100 ? '✅ Prêt à enregistrer' : '⚠ Champs obligatoires manquants' }}
+      </span>
+    </div>
+    <div class="rdv-progress-bar"><div class="rdv-progress-fill" [style.width.%]="formProgress"></div></div>
+    <div class="rdv-steps">
+      <span [class.done]="rendezvous.dateRendezvous">📅 Date</span>
+      <span [class.done]="rendezvous.etat">📋 État</span>
+      <span [class.done]="selectedPatientId">👤 Patient</span>
+    </div>
+  </div>
+
+  <form (ngSubmit)="saveRendezvous()" #rdvForm="ngForm" novalidate>
+    <div class="rdv-card">
+      <h2>📋 Informations générales</h2>
+      <div class="rdv-grid">
+        <div class="rdv-field">
+          <label>Date &amp; heure <span class="req">*</span></label>
+          <input type="datetime-local" [(ngModel)]="rendezvous.dateRendezvous" name="dateRendezvous" required
+            [min]="minRendezvousDate" #dateRef="ngModel" (change)="onDateChange()" />
+        </div>
+        <div class="rdv-field">
+          <label>État <span class="req">*</span></label>
+          <select [(ngModel)]="rendezvous.etat" name="etat" required #etatRef="ngModel" (change)="calcProgress()">
+            <option value="">— Choisir un état —</option>
+            <option value="PREVU">Prévu</option>
+            <option value="PLANIFIE">Planifié</option>
+            <option value="CONFIRME">Confirmé</option>
+            <option value="TERMINE">Terminé</option>
+            <option value="ANNULE">Annulé</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="rdv-card">
+      <h2>👤 Patient</h2>
+      <div class="rdv-field">
+        <label>Patient <span class="req">*</span></label>
+        <select [(ngModel)]="selectedPatientId" name="patientId" required #patientRef="ngModel" (change)="calcProgress()">
+          <option [ngValue]="null">— Choisir un patient —</option>
+          <option *ngFor="let p of patientsList" [ngValue]="p.idPatient">
+            {{ p.firstName }} {{ p.lastName }} (#{{ p.idPatient }})
+          </option>
+        </select>
+        <p class="rdv-hint" *ngIf="!patientsList.length">Aucun patient : démarrez NEPHRO et vérifiez GET /api/patients.</p>
+      </div>
+    </div>
+
+    <div class="rdv-actions">
+      <button type="button" class="rdv-btn-secondary" (click)="resetForm()">Réinitialiser</button>
+      <button type="submit" class="rdv-btn-primary" [disabled]="rdvForm.invalid || isLoading">
+        {{ isLoading ? 'Enregistrement…' : 'Enregistrer le rendez-vous' }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="rdv-toast" *ngIf="toastVisible" [ngClass]="toastType">{{ toastMessage }}</div>

@@ -1,0 +1,113 @@
+<div class="register-page">
+  <div class="register-card">
+    <div class="register-header">
+      <h1 class="register-logo">KidneyCare</h1>
+      <p class="register-subtitle">Cr�ez votre espace patient</p>
+      <div class="register-badge">N�phrologie � Post?greffe</div>
+    </div>
+
+    <div class="register-body">
+      <form class="register-form" (ngSubmit)="onSubmit()" #regForm="ngForm" novalidate>
+        <div class="register-row">
+          <div class="form-group">
+            <label>Nom d'utilisateur *</label>
+            <input
+              type="text"
+              name="username"
+              [(ngModel)]="model.username"
+              required
+              placeholder="Identifiant"
+              autocomplete="username"
+            />
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input
+              type="email"
+              name="email"
+              [(ngModel)]="model.email"
+              required
+              placeholder="email@exemple.com"
+              autocomplete="email"
+            />
+          </div>
+        </div>
+
+        <div class="register-row">
+          <div class="form-group">
+            <label>Pr�nom *</label>
+            <input
+              type="text"
+              name="firstName"
+              [(ngModel)]="model.firstName"
+              required
+              placeholder="Pr�nom"
+              autocomplete="given-name"
+            />
+          </div>
+          <div class="form-group">
+            <label>Nom *</label>
+            <input
+              type="text"
+              name="lastName"
+              [(ngModel)]="model.lastName"
+              required
+              placeholder="Nom"
+              autocomplete="family-name"
+            />
+          </div>
+        </div>
+
+        <div class="register-row">
+          <div class="form-group">
+            <label>Mot de passe *</label>
+            <input
+              type="password"
+              name="password"
+              [(ngModel)]="model.password"
+              required
+              minlength="6"
+              placeholder="Min. 6 caract�res"
+              autocomplete="new-password"
+            />
+          </div>
+          <div class="form-group">
+            <label>Confirmer *</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              [(ngModel)]="confirmPassword"
+              required
+              placeholder="R�p�ter"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>R�le</label>
+          <select
+            name="role"
+            [(ngModel)]="model.role"
+          >
+            <option value="patient">Patient</option>
+            <option value="medecin">M�decin</option>
+          </select>
+        </div>
+
+        <div class="register-error" *ngIf="error">{{ error }}</div>
+        <div class="register-success" *ngIf="success">{{ success }}</div>
+
+        <button type="submit" class="btn-register" [disabled]="loading || regForm.invalid">
+          <span *ngIf="!loading">Cr�er mon compte</span>
+          <span *ngIf="loading" class="register-spinner"></span>
+        </button>
+      </form>
+
+      <p class="register-login-link">
+        D�j� un compte ?
+        <a routerLink="/login">Se connecter</a>
+      </p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,164 @@
+<!-- ═══ NAVBAR (zone médecin — liens /back) ═══ -->
+<nav class="ac-nav" aria-label="Navigation rapide">
+  <div class="ac-nav-brand">
+    <span class="ac-nav-logo" aria-hidden="true">🩺</span>
+    <span class="ac-nav-title">Espace clinique</span>
+  </div>
+  <div class="ac-nav-links">
+    <a routerLink="/back/dashboard" class="ac-nav-link">Dashboard</a>
+    <a routerLink="/back/dossiers" class="ac-nav-link">Dossiers</a>
+    <a routerLink="/back/consultations" class="ac-nav-link ac-nav-link--active">Consultations</a>
+    <a routerLink="/back/users" class="ac-nav-link">Patients</a>
+    <a routerLink="/back/parametres-vitaux" class="ac-nav-link">Paramètres vitaux</a>
+    <a routerLink="/back/consultation-detail" class="ac-nav-link">Tableau de bord</a>
+  </div>
+  <div class="ac-nav-meta">
+    <span class="ac-clock" aria-live="polite">{{ nowLabel }}</span>
+  </div>
+</nav>
+
+<div class="ac-wrap">
+  <div class="ac-breadcrumb">
+    <a routerLink="/back">Accueil</a>
+    <span class="ac-bc-sep">›</span>
+    <span>Consultations</span>
+  </div>
+
+  <header class="ac-hero">
+    <div class="ac-hero-text">
+      <span class="ac-badge">Doctor's area</span>
+      <h1 class="ac-hero-title">Consultations</h1>
+      <p class="ac-hero-sub">
+        {{ filteredRows.length }} affichée(s) sur {{ consultationsRaw.length }} chargée(s)
+      </p>
+    </div>
+    <div class="ac-hero-actions">
+      <button type="button" class="ac-btn ac-btn--ghost" (click)="loadAll()" [disabled]="loading">
+        {{ loading ? 'Chargement…' : 'Rafraîchir' }}
+      </button>
+      <button type="button" class="ac-btn ac-btn--primary" (click)="exportCSV()" [disabled]="!filteredRows.length">
+        Exporter CSV
+      </button>
+      <a class="ac-btn ac-btn--outline" routerLink="/back/rendezvous/new">Nouveau RDV</a>
+      <a class="ac-btn ac-btn--outline" routerLink="/back/rapports/new">Nouveau rapport</a>
+    </div>
+  </header>
+
+  <div class="ac-kpi-row">
+    <div class="ac-kpi">
+      <span class="ac-kpi-label">Total</span>
+      <span class="ac-kpi-value">{{ consultationsRaw.length }}</span>
+    </div>
+    <div class="ac-kpi ac-kpi--warn">
+      <span class="ac-kpi-label">Risque élevé</span>
+      <span class="ac-kpi-value">{{ kpiHighRisk }}</span>
+    </div>
+    <div class="ac-kpi ac-kpi--ok">
+      <span class="ac-kpi-label">Avec RDV lié</span>
+      <span class="ac-kpi-value">{{ kpiWithRdv }}</span>
+    </div>
+  </div>
+
+  <div class="ac-toolbar">
+    <div class="ac-search">
+      <span class="ac-search-icon" aria-hidden="true">🔍</span>
+      <input
+        type="search"
+        class="ac-search-input"
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="applyFilters()"
+        placeholder="Rechercher (diagnostic, notes, patient, n°)…"
+        aria-label="Filtrer les consultations"
+      />
+    </div>
+    <div class="ac-sort">
+      <label for="ac-sort-select">Trier</label>
+      <select
+        id="ac-sort-select"
+        class="ac-select"
+        [(ngModel)]="sortOrder"
+        (ngModelChange)="applyFilters()"
+      >
+        <option value="recent">Plus récent</option>
+        <option value="ancien">Plus ancien</option>
+        <option value="diagnostic">Diagnostic A→Z</option>
+        <option value="risk">Score de risque</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="ac-hint" *ngIf="searchTerm">Échap pour effacer la recherche.</p>
+
+  <div *ngIf="loadError" class="ac-alert ac-alert--error">{{ loadError }}</div>
+
+  <div *ngIf="loading" class="ac-loading">
+    <div class="ac-spinner"></div>
+    <p>Chargement des consultations…</p>
+  </div>
+
+  <div *ngIf="!loading && !consultationsRaw.length && !loadError" class="ac-empty">
+    <div class="ac-empty-icon" aria-hidden="true">📋</div>
+    <h2>Aucune consultation</h2>
+    <p>Les données remonteront depuis le service <code>/projet/consultation</code>.</p>
+  </div>
+
+  <div class="ac-table-wrap" *ngIf="!loading && filteredRows.length">
+    <table class="ac-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Patient</th>
+          <th>Diagnostic</th>
+          <th>Risque</th>
+          <th>RDV</th>
+          <th>Rapport</th>
+          <th class="ac-th-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of filteredRows; trackBy: trackById">
+          <td class="ac-mono">{{ row.idConsultation }}</td>
+          <td>{{ row.dateConsultation | slice:0:10 }}</td>
+          <td>{{ row.patientLabel }}</td>
+          <td>
+            <span class="ac-diag">{{ row.diagnostic || '—' }}</span>
+          </td>
+          <td>
+            <span
+              class="ac-risk"
+              [class.ac-risk--high]="row.riskLabel === 'Élevé'"
+              [class.ac-risk--mid]="row.riskLabel === 'Modéré'"
+              [class.ac-risk--low]="row.riskLabel === 'Faible'"
+            >
+              {{ row.riskScore }} — {{ row.riskLabel }}
+            </span>
+          </td>
+          <td>
+            <ng-container *ngIf="row.rdvId; else noRdv">
+              <a class="ac-link" [routerLink]="['/back/rendezvous/edit', row.rdvId]">
+                {{ row.rdvDate | slice:0:10 }} ({{ row.rdvEtat || '—' }})
+              </a>
+            </ng-container>
+            <ng-template #noRdv>—</ng-template>
+          </td>
+          <td>
+            <ng-container *ngIf="row.rapportId; else noRp">
+              <a class="ac-link" [routerLink]="['/back/rapports/edit', row.rapportId]">
+                #{{ row.rapportId }}
+              </a>
+            </ng-container>
+            <ng-template #noRp>—</ng-template>
+          </td>
+          <td class="ac-actions">
+            <a class="ac-btn-mini" [routerLink]="['/back/consultations/edit', row.idConsultation]">Modifier</a>
+            <a class="ac-btn-mini ac-btn-mini--ghost" routerLink="/back/consultation-detail">Détail</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="ac-toast ac-toast--ok" *ngIf="toastSuccess" role="status">{{ toastMsg }}</div>
+<div class="ac-toast ac-toast--err" *ngIf="toastError" role="alert">{{ toastMsg }}</div>

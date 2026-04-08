@@ -1,0 +1,134 @@
+<div class="content">
+  <div class="breadcrumb">
+    <a routerLink="/back">Accueil</a>
+    <span class="bc-sep">›</span>
+    <a routerLink="/back/parametres-vitaux">Paramètres Vitaux</a>
+    <span class="bc-sep">›</span>
+    <span>Nouvel Indicateur Vital</span>
+  </div>
+
+  <div class="page-header">
+    <h1>📊 Nouvel Indicateur Vital</h1>
+    <p class="subtitle">Créer un biomarqueur rénal pour le suivi post-greffe pédiatrique</p>
+  </div>
+
+  <div class="progress-card">
+    <div class="progress-info">
+      <span class="progress-title">Progression du formulaire</span>
+      <span class="progress-status" [class.ready]="formProgress === 100">
+        {{ formProgress === 100 ? '✅ Prêt à enregistrer' : '⚠ Champs obligatoires manquants' }}
+      </span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="formProgress"></div>
+    </div>
+    <div class="progress-steps">
+      <span [class.step-done]="indicateur.nomIndicateur.trim()">🏷️ Nom</span>
+      <span [class.step-done]="indicateur.unite.trim()">📏 Unité</span>
+      <span [class.step-done]="indicateur.actif !== null && indicateur.actif !== undefined">🔘 Statut</span>
+    </div>
+  </div>
+
+  <div class="alert-error-bar" *ngIf="errorMsg">
+    <span>⚠️ {{ errorMsg }}</span>
+    <button type="button" (click)="errorMsg = ''">✕</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-teal">🏷️</div>
+      <div>
+        <h3>Identité de l'Indicateur</h3>
+        <p class="card-desc">Nom clinique et unité de mesure du biomarqueur</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-group" [class.group-error]="submitted && !indicateur.nomIndicateur.trim()">
+        <label class="form-label">Nom de l'indicateur <span class="req">*</span></label>
+        <input
+          type="text"
+          class="form-control"
+          [(ngModel)]="indicateur.nomIndicateur"
+          (ngModelChange)="calcProgress()"
+          maxlength="100"
+        />
+      </div>
+      <div class="form-group mt-18" [class.group-error]="submitted && !indicateur.unite.trim()">
+        <label class="form-label">Unité de mesure <span class="req">*</span></label>
+        <input
+          type="text"
+          class="form-control"
+          [(ngModel)]="indicateur.unite"
+          (ngModelChange)="calcProgress()"
+          maxlength="30"
+        />
+        <div class="suggestions-row">
+          <span class="chip" *ngFor="let u of unitesSuggestions" [class.chip-selected]="indicateur.unite === u" (click)="selectUnite(u)">
+            {{ u }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-indigo">🔘</div>
+      <div>
+        <h3>Statut de l'Indicateur</h3>
+        <p class="card-desc">Visible dans les bilans si actif</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="toggle-row">
+        <button
+          type="button"
+          class="toggle-btn"
+          [class.active]="indicateur.actif === true"
+          (click)="indicateur.actif = true; calcProgress()"
+        >
+          ✅ Actif
+        </button>
+        <button
+          type="button"
+          class="toggle-btn"
+          [class.active]="indicateur.actif === false"
+          (click)="indicateur.actif = false; calcProgress()"
+        >
+          ⛔ Inactif
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-purple">📝</div>
+      <div>
+        <h3>Description clinique</h3>
+        <p class="card-desc"><span class="optional-tag">Optionnel</span></p>
+      </div>
+    </div>
+    <div class="card-body">
+      <textarea
+        class="form-control form-textarea"
+        [(ngModel)]="indicateur.description"
+        rows="4"
+        maxlength="500"
+      ></textarea>
+      <div class="char-count">{{ (indicateur.description || '').length }} / 500</div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="button" class="btn-secondary" (click)="goBack()" [disabled]="loading">← Annuler</button>
+    <button type="button" class="btn-primary" (click)="submit()" [disabled]="loading">
+      <span *ngIf="loading">Enregistrement…</span>
+      <span *ngIf="!loading">💾 Enregistrer l'indicateur</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast-wrapper" [class.toast-visible]="toastSuccess">
+  <div class="toast toast-success">✓ Indicateur vital ajouté avec succès !</div>
+</div>

@@ -1,0 +1,25 @@
+<div class="lab-evolution" *ngIf="resultats?.length">
+  <h4 class="lab-evolution-heading">Workup trends</h4>
+
+  <div class="lab-evolution-chart-wrap" *ngIf="showRenal">
+    <div class="lab-evolution-chart-head">
+      <span class="lab-evolution-chart-title">{{ renalTitle }}</span>
+    </div>
+    <div class="lab-evolution-canvas-box">
+      <canvas #canvasRenal></canvas>
+    </div>
+  </div>
+
+  <div class="lab-evolution-chart-wrap" *ngIf="showNfs">
+    <div class="lab-evolution-chart-head">
+      <span class="lab-evolution-chart-title">{{ nfsTitle }}</span>
+    </div>
+    <div class="lab-evolution-canvas-box lab-evolution-canvas-box--nfs">
+      <canvas #canvasNfs></canvas>
+    </div>
+  </div>
+
+  <div *ngIf="!showRenal && !showNfs" class="lab-evolution-empty">
+    No structured data (CBC / renal panel) in result texts to plot charts.
+  </div>
+</div>

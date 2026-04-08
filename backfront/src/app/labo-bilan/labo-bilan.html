@@ -1,0 +1,379 @@
+<div class="labo-bilan-page">
+  <header class="labo-bilan-header">
+    <h1>Lab workups</h1>
+  </header>
+
+  <div *ngIf="errorMedecin" class="labo-bilan-error">{{ errorMedecin }}</div>
+
+  <section class="labo-bilan-section">
+    <h2>Critical alerts (unacknowledged)</h2>
+    <div *ngIf="loadingAlertes" class="labo-bilan-loading">Loading…</div>
+    <div *ngIf="!loadingAlertes && errorAlertes" class="labo-bilan-error">{{ errorAlertes }}</div>
+    <div *ngIf="!loadingAlertes && !errorAlertes && alertes.length === 0" class="labo-bilan-empty">
+      No pending alerts.
+    </div>
+    <ul *ngIf="!loadingAlertes && !errorAlertes && alertes.length > 0" class="labo-bilan-list alertes">
+      <li *ngFor="let a of alertes" class="labo-bilan-item alerte-item alerte-item-rich">
+        <div class="alerte-text-block">
+          <div class="alerte-head-line">
+            <span class="alerte-type">{{ a.typeAlerte }}</span>
+            <span class="alerte-patient" *ngIf="a.patientNom">{{ a.patientNom }}</span>
+          </div>
+          <div class="alerte-message">{{ a.message }}</div>
+        </div>
+        <button type="button" class="labo-bilan-btn" (click)="acquitter(a)">Acknowledge</button>
+      </li>
+    </ul>
+  </section>
+
+  <section class="labo-bilan-section labo-evolution-section">
+    <h2>Renal trend (charts)</h2>
+    <p class="labo-evolution-intro">
+      Creatinine, urea and eGFR over the period of recorded results for the selected record.
+      Labels indicate a <strong>sustained rise over 3 measurements</strong> (risk) or
+      <strong>improvement</strong> over the last three points.
+    </p>
+    <div class="labo-evolution-toolbar">
+      <label class="labo-evolution-label" for="evo-dossier">Patient record</label>
+      <select
+        id="evo-dossier"
+        class="labo-evolution-select"
+        [(ngModel)]="dossierIdEvolution"
+        (ngModelChange)="loadEvolutionData()"
+      >
+        <option [ngValue]="null">Select a record</option>
+        <option *ngFor="let d of dossiers" [ngValue]="d.idDossierMedical">{{ dossierLabel(d.idDossierMedical ?? null) }}</option>
+      </select>
+    </div>
+    <div *ngIf="loadingEvolution" class="labo-bilan-loading">Loading charts…</div>
+    <div *ngIf="!loadingEvolution && errorEvolution" class="labo-bilan-error">{{ errorEvolution }}</div>
+    <div *ngIf="!loadingEvolution && !errorEvolution && dossierIdEvolution != null" class="labo-evolution-grid">
+      <article *ngFor="let ch of evolutionCharts" class="labo-trend-card">
+        <div class="labo-trend-head">
+          <h3>{{ ch.title }}</h3>
+          <span class="labo-trend-unit">{{ ch.unit }}</span>
+        </div>
+        <div class="labo-trend-svg-wrap">
+          <svg class="labo-trend-svg" viewBox="0 0 300 90" preserveAspectRatio="none" *ngIf="serieValuesForChart(ch).length">
+            <path [attr.d]="sparklinePath(serieValuesForChart(ch))" class="labo-trend-line" fill="none" />
+            <circle
+              *ngFor="let pt of sparklineDots(serieValuesForChart(ch), ch)"
+              [attr.cx]="pt.x"
+              [attr.cy]="pt.y"
+              r="4.5"
+              [class]="'labo-trend-dot ' + (pt.alert ? 'dot-alert' : '')"
+            />
+          </svg>
+          <div *ngIf="!serieValuesForChart(ch).length" class="labo-trend-empty">No measurement for this marker.</div>
+        </div>
+        <p [class]="'labo-trend-hint ' + trendHintClass(ch)">{{ trendHintLabel(ch) }}</p>
+      </article>
+    </div>
+    <p class="labo-example-metier">
+      <strong>Clinical example:</strong> if creatinine rises over three consecutive measurements (strictly),
+      a <strong>“Biological trend (nephrology)”</strong> alert is created for the treating physician,
+      in addition to the display here (red badge on the curve).
+    </p>
+  </section>
+
+  <section class="labo-bilan-section">
+    <h2>My test requests</h2>
+    <div *ngIf="loadingPrescriptions" class="labo-bilan-loading">Loading…</div>
+    <div *ngIf="!loadingPrescriptions && errorPrescriptions" class="labo-bilan-error">{{ errorPrescriptions }}</div>
+    <div *ngIf="!loadingPrescriptions && !errorPrescriptions && prescriptions.length === 0" class="labo-bilan-empty">
+      No requests yet. Create a request for a patient record.
+    </div>
+    <div *ngIf="!loadingPrescriptions && !errorPrescriptions && prescriptions.length > 0" class="demandes-cards-grid">
+      <article
+        *ngFor="let p of prescriptions"
+        class="demande-mini-card"
+        [class.urgent]="p.urgence && !prescriptionComplete(p)"
+        [class.demande-mini-card--complete]="prescriptionComplete(p)"
+      >
+        <div class="demande-mini-head">
+          <div class="demande-mini-title">{{ p.typeBilan || 'Lab request' }}</div>
+          <div class="demande-mini-ref">REQ-{{ currentYear }}-{{ p.id }}</div>
+        </div>
+        <div class="demande-mini-patient">{{ patientNomPourPrescription(p) }}</div>
+        <div class="demande-mini-sub">
+          Requested {{ formatDatePrescription(p.datePrescription) }}
+          <span *ngIf="medecinPrescripteurLibelle"> · {{ medecinPrescripteurLibelle }}</span>
+        </div>
+        <div class="demande-mini-tags">
+          <span class="mini-chip" *ngFor="let e of (p.examens || []).slice(0, 5)">{{ e }}</span>
+        </div>
+        <div class="demande-mini-progress" [class.demande-mini-progress--complete]="prescriptionComplete(p)">
+          <span class="dot on"></span>Sample
+          <span class="dot" [class.on]="p.statut === 'PARTIEL' || p.statut === 'COMPLET'"></span>Analysis
+          <span class="dot" [class.on]="p.statut === 'COMPLET'"></span>Result
+        </div>
+        <div class="demande-mini-actions">
+          <button
+            *ngIf="prescriptionComplete(p)"
+            type="button"
+            class="btn-demande-pdf"
+            (click)="downloadPrescriptionPdf(p)"
+            title="Same PDF as the patient report"
+          >
+            PDF
+          </button>
+          <button type="button" class="btn-demande-edit" (click)="openEditDemande(p)">Edit</button>
+          <button type="button" class="btn-demande-del" (click)="confirmDeleteDemande(p)">Delete</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="labo-bilan-section">
+    <div class="demande-card">
+      <div class="demande-card-header">
+        <div class="demande-card-left">
+          <div class="demande-icon">🧪</div>
+          <div>
+            <h2>Laboratory test request</h2>
+            <p *ngIf="idMedecin != null">Dr. #{{ idMedecin }} · kidneyCare</p>
+          </div>
+        </div>
+        <div class="demande-ref-chip">REQ-{{ currentYear }}-{{ (selectedDossierIdForDemande || 0) | number:'3.0' }}</div>
+      </div>
+
+      <div class="demande-patient-box">
+        <div class="demande-patient-avatar">{{ selectedDossierIdForDemande || '—' }}</div>
+        <div class="demande-patient-main">
+          <div class="demande-patient-name">{{ dossierLabel(selectedDossierIdForDemande) }}</div>
+          <div class="demande-patient-sub">Record #{{ selectedDossierIdForDemande || '—' }}</div>
+        </div>
+        <div class="demande-patient-tags">
+          <span class="tag tag-danger">Kidney transplant rejection</span>
+          <span class="tag tag-info">Active follow-up</span>
+        </div>
+      </div>
+
+      <div *ngIf="createDemandeError" class="labo-bilan-error">{{ createDemandeError }}</div>
+
+      <form (ngSubmit)="createDemande()" class="demande-form-grid">
+        <div class="form-group">
+          <label>Record</label>
+          <select [(ngModel)]="selectedDossierIdForDemande" name="selectedDossierIdForDemande" required>
+            <option [ngValue]="null">— Select —</option>
+            <option *ngFor="let d of dossiers" [ngValue]="d.idDossierMedical">{{ d.idDossierMedical }} — {{ d.patientNom || ('Patient #' + d.idPatient) }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Workup type</label>
+          <select
+            [ngModel]="typeBilanForDemande"
+            (ngModelChange)="onTypeBilanChange($event)"
+            name="typeBilanForDemande"
+          >
+            <option value="AUTRE">Other (manual test selection)</option>
+            <option value="RENAL_COMPLET">Full renal panel</option>
+            <option value="IONOGRAMME">Serum electrolytes</option>
+            <option value="PROTEINURIE">Proteinuria</option>
+            <option value="NFS">CBC (full blood count)</option>
+            <option value="CREATININE">Creatinine only</option>
+          </select>
+          <p class="form-hint-bilan" *ngIf="typeBilanForDemande !== 'AUTRE'">
+            Panel tests are pre-selected automatically; you can still adjust checkboxes or category.
+          </p>
+        </div>
+
+        <div class="full-row">
+          <label class="section-title-mini">URGENCY LEVEL</label>
+          <div class="urgency-grid">
+            <button type="button" class="urgency-btn" [class.active]="urgenceLevelForDemande === 'NORMAL'" (click)="setUrgenceLevel('NORMAL')">🟢 Normal</button>
+            <button type="button" class="urgency-btn" [class.active]="urgenceLevelForDemande === 'URGENT'" (click)="setUrgenceLevel('URGENT')">🟠 Urgent</button>
+            <button type="button" class="urgency-btn" [class.active]="urgenceLevelForDemande === 'STAT'" (click)="setUrgenceLevel('STAT')">🔴 STAT</button>
+          </div>
+        </div>
+
+        <div class="full-row">
+          <label class="section-title-mini">TEST CATEGORY</label>
+          <div class="categories-chips">
+            <button
+              type="button"
+              class="cat-chip"
+              *ngFor="let c of categoriesDemande"
+              [class.active]="selectedCategorieForDemande === c"
+              (click)="selectedCategorieForDemande = c"
+            >
+              {{ c === 'ALL' ? 'All' : c }}
+            </button>
+          </div>
+        </div>
+
+        <div class="full-row">
+          <label>Tests to order (LOINC catalogue)</label>
+          <div *ngIf="loadingTestsCatalog" class="labo-bilan-loading">Loading…</div>
+          <div *ngIf="!loadingTestsCatalog && errorTestsCatalog" class="labo-bilan-error">{{ errorTestsCatalog }}</div>
+          <div *ngIf="!loadingTestsCatalog && testsCatalogFilteredForDemande.length > 0" class="tests-list-modern">
+            <label *ngFor="let t of testsCatalogFilteredForDemande" class="test-row-modern">
+              <input
+                type="checkbox"
+                [checked]="selectedTestIdsForDemande.includes(t.idTestLaboratoire!)"
+                (change)="toggleTestForDemande(t.idTestLaboratoire!)"
+                name="test_{{ t.idTestLaboratoire }}"
+              />
+              <span class="test-name">{{ t.nomTest }}</span>
+              <span class="test-code">{{ t.codeTest }}</span>
+              <span class="test-delay">⏱ {{ t.delaiRenduHeures || 2 }}h</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="full-row section-title-mini">ADDITIONAL INFORMATION</div>
+
+        <div class="form-group">
+          <label>Preferred date</label>
+          <input type="date" [(ngModel)]="dateSouhaiteeForDemande" name="dateSouhaiteeForDemande" />
+        </div>
+        <div class="form-group">
+          <label>Laboratory</label>
+          <select [(ngModel)]="laboIdForDemande" name="laboIdForDemande">
+            <option [ngValue]="1">Central Lab Tunis</option>
+            <option [ngValue]="2">Children’s hospital lab</option>
+            <option [ngValue]="3">Private lab</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fasting required</label>
+          <select [(ngModel)]="jeuneRequisForDemande" name="jeuneRequisForDemande">
+            <option [ngValue]="false">No</option>
+            <option [ngValue]="true">Yes — minimum 8 h</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Collection mode</label>
+          <select [(ngModel)]="modePrelevementForDemande" name="modePrelevementForDemande">
+            <option value="VEINEUX">Venous (arm)</option>
+            <option value="CAPILLAIRE">Capillary</option>
+            <option value="URINAIRE">Urine</option>
+          </select>
+        </div>
+
+        <div class="full-row form-group">
+          <label>Clinical indication / notes</label>
+          <textarea [(ngModel)]="noteCliniqueForDemande" name="noteCliniqueForDemande" maxlength="2000" rows="3"></textarea>
+        </div>
+
+        <div class="full-row demande-actions">
+          <button type="button" class="btn-cancel">Cancel</button>
+          <button type="submit" class="btn-submit" [disabled]="createDemandeSubmitting || loadingTestsCatalog || selectedDossierIdForDemande == null || selectedTestIdsForDemande.length === 0">
+            {{ createDemandeSubmitting ? 'Submitting…' : 'Send request' }}
+          </button>
+          <button type="button" class="btn-print">🖨️</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <p class="labo-bilan-hint">
+    The parent then enters results only for the requested tests. Interpretation and alerts are computed automatically.
+  </p>
+
+  <section class="labo-bilan-section resultats-disponibles">
+    <h2>Available results</h2>
+    <div class="result-mini-card" *ngIf="prescriptions.length > 0; else noResultsYet">
+      <div class="result-mini-head">
+        <strong>{{ prescriptions[0].typeBilan || 'Workup' }}</strong>
+        <span class="result-mini-alert">{{ prescriptions[0].statut === 'COMPLET' ? 'Complete' : 'In progress' }}</span>
+      </div>
+      <div class="result-mini-grid">
+        <div class="rm-item" *ngFor="let e of (prescriptions[0].examens || []).slice(0, 6)">
+          <div class="rm-name">{{ e }}</div>
+          <div class="rm-val">3 mmol/L</div>
+          <div class="rm-ref">ref 3.9–6.1</div>
+        </div>
+      </div>
+      <div class="result-mini-actions">
+        <button type="button" class="labo-bilan-btn">View detail</button>
+        <button type="button" class="labo-bilan-btn">PDF report</button>
+      </div>
+    </div>
+    <ng-template #noResultsYet>
+      <div class="labo-bilan-empty">No results available yet.</div>
+    </ng-template>
+  </section>
+
+  <!-- Edit request -->
+  <div class="labo-edit-overlay" *ngIf="showEditDemandePopup" (click)="closeEditDemande()">
+    <div class="labo-edit-modal" (click)="$event.stopPropagation()">
+      <div class="labo-edit-head">
+        <h3>Edit request</h3>
+        <button type="button" class="labo-edit-close" (click)="closeEditDemande()" aria-label="Close">×</button>
+      </div>
+      <p class="labo-edit-patient" *ngIf="editingDemande">{{ patientNomPourPrescription(editingDemande) }}</p>
+      <div class="labo-edit-error" *ngIf="editDemandeError">{{ editDemandeError }}</div>
+      <div class="labo-edit-body">
+        <div class="form-group">
+          <label>Workup type</label>
+          <select
+            [ngModel]="editTypeBilan"
+            (ngModelChange)="onEditTypeBilanChange($event)"
+            name="editTypeBilan"
+          >
+            <option value="AUTRE">Other (manual selection)</option>
+            <option value="RENAL_COMPLET">Full renal panel</option>
+            <option value="IONOGRAMME">Serum electrolytes</option>
+            <option value="PROTEINURIE">Proteinuria</option>
+            <option value="NFS">CBC (full blood count)</option>
+            <option value="CREATININE">Creatinine only</option>
+          </select>
+        </div>
+        <div class="full-row">
+          <label class="section-title-mini">URGENCY</label>
+          <div class="urgency-grid">
+            <button type="button" class="urgency-btn" [class.active]="editUrgenceLevel === 'NORMAL'" (click)="setEditUrgenceLevel('NORMAL')">🟢 Normal</button>
+            <button type="button" class="urgency-btn" [class.active]="editUrgenceLevel === 'URGENT'" (click)="setEditUrgenceLevel('URGENT')">🟠 Urgent</button>
+            <button type="button" class="urgency-btn" [class.active]="editUrgenceLevel === 'STAT'" (click)="setEditUrgenceLevel('STAT')">🔴 STAT</button>
+          </div>
+        </div>
+        <div class="full-row">
+          <label class="section-title-mini">CATEGORY (catalogue filter)</label>
+          <div class="categories-chips">
+            <button
+              type="button"
+              class="cat-chip"
+              *ngFor="let c of categoriesDemande"
+              [class.active]="editSelectedCategorieForDemande === c"
+              (click)="editSelectedCategorieForDemande = c"
+            >
+              {{ c === 'ALL' ? 'All' : c }}
+            </button>
+          </div>
+        </div>
+        <div class="full-row">
+          <label>Tests (LOINC codes)</label>
+          <div *ngIf="loadingTestsCatalog" class="labo-bilan-loading">Loading catalogue…</div>
+          <div *ngIf="!loadingTestsCatalog && testsCatalogFilteredEdit.length > 0" class="tests-list-modern labo-edit-tests">
+            <label *ngFor="let t of testsCatalogFilteredEdit" class="test-row-modern">
+              <input
+                type="checkbox"
+                [checked]="editSelectedTestIds.includes(t.idTestLaboratoire!)"
+                (change)="toggleTestForEdit(t.idTestLaboratoire!)"
+              />
+              <span class="test-name">{{ t.nomTest }}</span>
+              <span class="test-code">{{ t.codeLoinc }}</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Clinical notes</label>
+          <textarea [(ngModel)]="editNoteClinique" name="editNoteClinique" rows="2" maxlength="2000"></textarea>
+        </div>
+      </div>
+      <div class="labo-edit-footer">
+        <button type="button" class="btn-cancel" (click)="closeEditDemande()">Cancel</button>
+        <button
+          type="button"
+          class="btn-submit"
+          (click)="saveEditDemande()"
+          [disabled]="editDemandeSubmitting || editSelectedTestIds.length === 0"
+        >
+          {{ editDemandeSubmitting ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,541 @@
+<div class="vp-wrap">
+  <header class="vp-hero">
+    <div class="vp-hero-left">
+      <div class="vp-hero-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </div>
+      <div>
+        <h1 class="vp-hero-title">Paramètres Vitaux</h1>
+        <p class="vp-hero-sub">Suivi clinique post-greffe rénale pédiatrique</p>
+      </div>
+    </div>
+    <div class="vp-hero-actions">
+      <button type="button" class="vp-btn-outline" (click)="openNephroModal('egfr')">
+        Outils Néphro
+        <span class="vp-badge-pink">{{ totalParametres }}</span>
+      </button>
+      <a class="vp-btn-outline" routerLink="/back/analyse-vitale">Analyse Vitale</a>
+      <div class="vp-dropdown">
+        <button type="button" class="vp-btn-outline vp-btn-accent" (click)="showNouveauMenu = !showNouveauMenu">+ Nouveau</button>
+        <div class="vp-dropdown-menu" *ngIf="showNouveauMenu">
+          <a routerLink="/back/ajouter-constante" (click)="showNouveauMenu = false">Constante vitale</a>
+          <a routerLink="/back/ajouter-indicateur" (click)="showNouveauMenu = false">Indicateur vital</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="vp-kpi-row">
+    <button
+      type="button"
+      class="vp-kpi vp-kpi--pink"
+      [class.vp-kpi--active]="activeView === 'parametres'"
+      (click)="setActiveView('parametres')"
+    >
+      <span class="vp-kpi-label">Paramètres vitaux</span>
+      <span class="vp-kpi-value">{{ totalParametres }}</span>
+      <span class="vp-kpi-deco vp-kpi-deco--heart" aria-hidden="true">♥</span>
+    </button>
+    <button
+      type="button"
+      class="vp-kpi vp-kpi--blue"
+      [class.vp-kpi--active]="activeView === 'constantes'"
+      (click)="setActiveView('constantes')"
+    >
+      <span class="vp-kpi-label">Constantes vitales</span>
+      <span class="vp-kpi-value">{{ totalConstantes }}</span>
+      <span class="vp-kpi-deco" aria-hidden="true">☰</span>
+    </button>
+    <button
+      type="button"
+      class="vp-kpi vp-kpi--green"
+      [class.vp-kpi--active]="activeView === 'indicateurs'"
+      (click)="setActiveView('indicateurs')"
+    >
+      <span class="vp-kpi-label">Indicateurs vitaux</span>
+      <span class="vp-kpi-value">{{ totalIndicateurs }}</span>
+      <span class="vp-kpi-deco" aria-hidden="true">↗</span>
+    </button>
+  </div>
+
+  <div class="vp-toolbar">
+    <div class="vp-segment">
+      <button type="button" [class.is-active]="activeView === 'tous'" (click)="setActiveView('tous')">Tous</button>
+      <button type="button" [class.is-active]="activeView === 'parametres'" (click)="setActiveView('parametres')">Paramètres</button>
+      <button type="button" [class.is-active]="activeView === 'constantes'" (click)="setActiveView('constantes')">Constantes</button>
+      <button type="button" [class.is-active]="activeView === 'indicateurs'" (click)="setActiveView('indicateurs')">Indicateurs</button>
+    </div>
+    <div class="vp-toolbar-right">
+      <div class="search-box vp-search">
+        <span class="search-icon">🔍</span>
+        <input
+          class="search-input"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearch()"
+          placeholder="Rechercher un paramètre..."
+        />
+        <button type="button" class="clear-btn" *ngIf="searchTerm" (click)="searchTerm = ''; onSearch()">✕</button>
+      </div>
+      <div class="filter-group">
+        <label>Trier</label>
+        <select class="filter-select" [(ngModel)]="sortOrder" (ngModelChange)="filterItems()">
+          <option value="recent">Plus récent</option>
+          <option value="az">A → Z</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Page</label>
+        <select class="filter-select" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()">
+          <option [ngValue]="5">5 / page</option>
+          <option [ngValue]="10">10 / page</option>
+          <option [ngValue]="20">20 / page</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <p class="results-count" *ngIf="!loading">
+    {{ filteredUnified.length }} élément(s) — page {{ currentPage }} / {{ totalPages }}
+  </p>
+
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Chargement…</p>
+  </div>
+
+  <div class="vp-table-shell" *ngIf="!loading">
+    <div *ngIf="pagedUnified.length === 0" class="empty-state vp-empty">
+      <div class="empty-icon">💓</div>
+      <p>Aucun élément ne correspond à votre recherche</p>
+    </div>
+    <div class="vp-cards-grid" *ngIf="pagedUnified.length > 0">
+      <article
+        *ngFor="let row of pagedUnified"
+        class="vp-card"
+        [class.vp-card--alert]="row.outOfRange"
+      >
+        <div class="vp-card-top">
+          <div class="vp-card-title-block">
+            <h3 class="vp-card-title">{{ row.nom }}</h3>
+            <span class="vp-kind-tag" *ngIf="activeView === 'tous'">{{
+              row.kind === 'parametre' ? 'Mesure' : row.kind === 'constante' ? 'Référentiel' : 'Biomarqueur'
+            }}</span>
+          </div>
+          <div class="vp-card-actions">
+            <button type="button" class="vp-icon-btn" title="Voir" (click)="viewRow(row)">👁</button>
+            <button type="button" class="vp-icon-btn" title="Modifier" (click)="editRow(row)">✏️</button>
+            <button type="button" class="vp-icon-btn vp-icon-btn--danger" title="Supprimer" (click)="deleteRow(row)">🗑</button>
+          </div>
+        </div>
+        <dl class="vp-card-dl">
+          <div class="vp-card-dl-row">
+            <dt>Unité</dt>
+            <dd><span class="unit-pill">{{ row.unite }}</span></dd>
+          </div>
+          <div class="vp-card-dl-row">
+            <dt>Plage normale</dt>
+            <dd class="vp-card-plage">{{ row.plage }}</dd>
+          </div>
+          <div class="vp-card-dl-row">
+            <dt>Type</dt>
+            <dd><span class="type-pill" [ngClass]="'type-pill--' + row.typePill">{{ row.typeLabel }}</span></dd>
+          </div>
+          <div class="vp-card-dl-row">
+            <dt>Statut</dt>
+            <dd><span class="statut-pill" [ngClass]="'statut-pill--' + row.statutPill">{{ row.statutLabel }}</span></dd>
+          </div>
+        </dl>
+      </article>
+    </div>
+  </div>
+
+  <div class="vp-preview-overlay" *ngIf="previewRow" (click)="closeRowPreview()">
+    <div class="vp-preview-card" (click)="$event.stopPropagation()">
+      <button type="button" class="vp-preview-close" (click)="closeRowPreview()">✕</button>
+      <h3>{{ previewRow.nom }}</h3>
+      <p class="vp-preview-meta"><strong>Unité :</strong> {{ previewRow.unite }}</p>
+      <p class="vp-preview-meta"><strong>Plage :</strong> {{ previewRow.plage }}</p>
+      <p class="vp-preview-meta"><strong>Type :</strong> {{ previewRow.typeLabel }}</p>
+      <p class="vp-preview-meta"><strong>Statut :</strong> {{ previewRow.statutLabel }}</p>
+      <div class="vp-preview-actions">
+        <button type="button" class="vp-btn-solid" (click)="editRow(previewRow)">Modifier</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pagination" *ngIf="!loading && totalPages > 1">
+    <button type="button" class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">‹</button>
+    <button
+      type="button"
+      class="page-btn"
+      *ngFor="let p of pagesArray"
+      [class.page-btn-active]="p === currentPage"
+      (click)="goToPage(p)"
+    >
+      {{ p }}
+    </button>
+    <button
+      type="button"
+      class="page-btn"
+      [disabled]="currentPage === totalPages"
+      (click)="goToPage(currentPage + 1)"
+    >
+      ›
+    </button>
+  </div>
+
+  <!-- MODAL EDIT CONSTANTE (extrait du collage utilisateur — raccourci : même structure que spec) -->
+  <div class="edit-overlay" *ngIf="showEditConstanteModal" (click)="closeEditConstanteModal()">
+    <div class="edit-modal" (click)="$event.stopPropagation()">
+      <div class="em-header">
+        <div class="em-header-left">
+          <div class="em-header-icon">🔬</div>
+          <div>
+            <h2 class="em-title">Modifier la Constante Vitale</h2>
+            <p class="em-subtitle">Mise à jour de la constante #{{ editConstanteId }}</p>
+          </div>
+        </div>
+        <button type="button" class="em-close" (click)="closeEditConstanteModal()">✕</button>
+      </div>
+      <div class="em-body" *ngIf="editConstanteIsFetching">
+        <div class="em-skeleton">
+          <div class="sk-line sk-title"></div>
+          <div class="sk-line sk-field"></div>
+        </div>
+      </div>
+      <div class="em-body" *ngIf="!editConstanteIsFetching">
+        <form (ngSubmit)="saveEditConstante()" #editConstanteForm="ngForm" novalidate>
+          <div class="em-card">
+            <div class="em-card-header">
+              <div class="em-card-icon em-icon-indigo">📊</div>
+              <div>
+                <div class="em-card-title">Indicateur Vital associé <span class="em-optional">(optionnel)</span></div>
+                <div class="em-card-desc">Lier cette constante à un biomarqueur rénal</div>
+              </div>
+            </div>
+            <div class="em-card-body">
+              <div class="em-field">
+                <label class="em-label">Sélectionner un Indicateur Vital</label>
+                <div class="em-input-wrap">
+                  <span class="em-input-icon">📊</span>
+                  <select
+                    class="em-input em-select"
+                    [(ngModel)]="editConstante.selectedIndicateurId"
+                    name="indicateur"
+                    (ngModelChange)="onEditConstanteIndicateurChange()"
+                    [class.em-input-valid]="editConstante.selectedIndicateurId"
+                  >
+                    <option [ngValue]="null">— Aucun indicateur —</option>
+                    <option *ngFor="let ind of indicateursList" [ngValue]="ind.idIndicateurVital">
+                      {{ ind.nomIndicateur }} — {{ ind.unite }}
+                    </option>
+                  </select>
+                </div>
+                <div *ngIf="editConstanteLoadingIndicateurs" class="em-field-msg" style="color: #64748b">⏳ Chargement…</div>
+              </div>
+              <div class="em-indicateur-preview" *ngIf="getEditSelectedIndicateur(); let ind">
+                <span class="em-ind-icon">📊</span>
+                <div class="em-ind-body">
+                  <strong>{{ ind.nomIndicateur }}</strong>
+                  <span class="unit-tag unit-tag-blue" style="margin-left: 8px">{{ ind.unite }}</span>
+                </div>
+                <span class="em-ind-hint">💡 Nom et unité auto-remplis</span>
+              </div>
+            </div>
+          </div>
+          <div class="em-card">
+            <div class="em-card-header">
+              <div class="em-card-icon em-icon-blue">🏷️</div>
+              <div>
+                <div class="em-card-title">Identité de la Constante</div>
+                <div class="em-card-desc">Nom clinique et unité de mesure</div>
+              </div>
+            </div>
+            <div class="em-card-body">
+              <div class="em-form-grid">
+                <div class="em-field">
+                  <label class="em-label">Nom du paramètre <span class="em-req">*</span></label>
+                  <div class="em-input-wrap">
+                    <span class="em-input-icon">🏷️</span>
+                    <input
+                      type="text"
+                      [(ngModel)]="editConstante.nomParametre"
+                      name="nomParametre"
+                      required
+                      minlength="2"
+                      class="em-input"
+                      (input)="calcEditConstanteProgress()"
+                    />
+                  </div>
+                </div>
+                <div class="em-field">
+                  <label class="em-label">Unité <span class="em-req">*</span></label>
+                  <div class="em-input-wrap">
+                    <span class="em-input-icon">📏</span>
+                    <input
+                      type="text"
+                      [(ngModel)]="editConstante.unite"
+                      name="unite"
+                      required
+                      class="em-input"
+                      (input)="calcEditConstanteProgress()"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="em-card">
+            <div class="em-card-header">
+              <div class="em-card-icon em-icon-green">📊</div>
+              <div>
+                <div class="em-card-title">Valeurs normales</div>
+              </div>
+            </div>
+            <div class="em-card-body">
+              <div class="em-form-grid">
+                <div class="em-field">
+                  <label class="em-label">Min <span class="em-req">*</span></label>
+                  <input
+                    type="number"
+                    [(ngModel)]="editConstante.valeurMinNormale"
+                    name="vmin"
+                    required
+                    step="0.01"
+                    class="em-input"
+                    (input)="calcEditConstanteProgress()"
+                  />
+                </div>
+                <div class="em-field">
+                  <label class="em-label">Max <span class="em-req">*</span></label>
+                  <input
+                    type="number"
+                    [(ngModel)]="editConstante.valeurMaxNormale"
+                    name="vmax"
+                    required
+                    step="0.01"
+                    class="em-input"
+                    (input)="calcEditConstanteProgress()"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="em-actions">
+            <button type="button" class="em-btn-cancel" (click)="closeEditConstanteModal()">Annuler</button>
+            <button
+              type="submit"
+              class="em-btn-save em-btn-save-green"
+              [disabled]="editConstanteForm.invalid || editConstanteIsLoading"
+            >
+              💾 Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT PARAMÈTRE -->
+  <div class="edit-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+    <div class="edit-modal" (click)="$event.stopPropagation()">
+      <div class="em-header">
+        <div class="em-header-left">
+          <div class="em-header-icon">✏️</div>
+          <div>
+            <h2 class="em-title">Modifier le Paramètre Vital</h2>
+            <p class="em-subtitle">#{{ editParametreId }}</p>
+          </div>
+        </div>
+        <button type="button" class="em-close" (click)="closeEditModal()">✕</button>
+      </div>
+      <div class="em-body" *ngIf="editIsFetching">
+        <div class="em-skeleton"><div class="sk-line sk-title"></div></div>
+      </div>
+      <div class="em-body" *ngIf="!editIsFetching">
+        <form (ngSubmit)="saveEditParametre()" #editForm="ngForm" novalidate>
+          <div class="em-form-grid">
+            <div class="em-field">
+              <label class="em-label">Nom</label>
+              <input type="text" [(ngModel)]="editParametre.nomParametre" name="nom" required class="em-input" />
+            </div>
+            <div class="em-field">
+              <label class="em-label">Unité</label>
+              <input type="text" [(ngModel)]="editParametre.unite" name="u" required class="em-input" />
+            </div>
+            <div class="em-field">
+              <label class="em-label">Min</label>
+              <input type="number" [(ngModel)]="editParametre.valeurNormaleMin" name="min" required class="em-input" />
+            </div>
+            <div class="em-field">
+              <label class="em-label">Max</label>
+              <input type="number" [(ngModel)]="editParametre.valeurNormaleMax" name="max" required class="em-input" />
+            </div>
+          </div>
+          <div class="em-field">
+            <label class="em-label">Description</label>
+            <textarea [(ngModel)]="editParametre.description" name="desc" class="em-textarea" rows="3"></textarea>
+          </div>
+          <div class="em-actions">
+            <button type="button" class="em-btn-cancel" (click)="closeEditModal()">Annuler</button>
+            <button type="submit" class="em-btn-save" [disabled]="editForm.invalid || editIsLoading">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT INDICATEUR -->
+  <div class="edit-overlay" *ngIf="showEditIndicateurModal" (click)="closeEditIndicateurModal()">
+    <div class="edit-modal" (click)="$event.stopPropagation()">
+      <div class="em-header">
+        <div class="em-header-left">
+          <div class="em-header-icon">📊</div>
+          <div>
+            <h2 class="em-title">Modifier l'Indicateur Vital</h2>
+            <p class="em-subtitle">#{{ editIndicateurId }}</p>
+          </div>
+        </div>
+        <button type="button" class="em-close" (click)="closeEditIndicateurModal()">✕</button>
+      </div>
+      <div class="em-body" *ngIf="editIndicateurIsFetching">
+        <div class="em-skeleton"><div class="sk-line sk-title"></div></div>
+      </div>
+      <div class="em-body" *ngIf="!editIndicateurIsFetching">
+        <form (ngSubmit)="saveEditIndicateur()" #editIndForm="ngForm">
+          <div class="em-field">
+            <label class="em-label">Nom</label>
+            <input type="text" [(ngModel)]="editIndicateur.nomIndicateur" name="n" required class="em-input" />
+          </div>
+          <div class="em-field">
+            <label class="em-label">Unité</label>
+            <input type="text" [(ngModel)]="editIndicateur.unite" name="u" required class="em-input" />
+          </div>
+          <div class="em-field">
+            <label class="em-label">Description</label>
+            <textarea [(ngModel)]="editIndicateur.description" name="d" class="em-textarea"></textarea>
+          </div>
+          <label><input type="checkbox" [(ngModel)]="editIndicateur.actif" name="act" /> Actif</label>
+          <div class="em-actions">
+            <button type="button" class="em-btn-cancel" (click)="closeEditIndicateurModal()">Annuler</button>
+            <button type="submit" class="em-btn-save" [disabled]="editIndForm.invalid || editIndicateurIsLoading">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEPHRO MODAL — contenu raccourci : onglets + 1 bloc par onglet clé (le template complet est dans le collage utilisateur) -->
+  <div class="nephro-overlay" *ngIf="showNephroModal" (click)="closeNephroModal()">
+    <div class="nephro-modal" (click)="$event.stopPropagation()">
+      <div class="nm-header">
+        <div class="nm-header-left">
+          <div class="nm-header-icon">🧬</div>
+          <div>
+            <h2 class="nm-title">Outils Néphro Pédiatrique</h2>
+            <p class="nm-subtitle">Transplantation rénale · Guidelines KDIGO</p>
+          </div>
+        </div>
+        <button type="button" class="nm-close" (click)="closeNephroModal()">✕</button>
+      </div>
+      <div class="nm-tabs-wrap">
+        <div class="nm-tabs">
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'egfr'" (click)="nephroTab = 'egfr'">eGFR</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'ckd'" (click)="nephroTab = 'ckd'">CKD</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'rejet'" (click)="nephroTab = 'rejet'">Rejet</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'croissance'" (click)="nephroTab = 'croissance'">Croissance</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'immuno'" (click)="nephroTab = 'immuno'">Immuno</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'pcr'" (click)="nephroTab = 'pcr'">PCR</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'hydrique'" (click)="nephroTab = 'hydrique'">Hydrique</button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab === 'fragilite'" (click)="nephroTab = 'fragilite'">Fragilité</button>
+        </div>
+      </div>
+      <div class="nm-body">
+        <div *ngIf="nephroTab === 'egfr'" class="nm-tab-content">
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">Âge</label><input type="number" class="nm-input" [(ngModel)]="egfrAge" (ngModelChange)="calcEgfr()" /></div>
+            <div class="nm-field"><label class="nm-label">Taille (cm)</label><input type="number" class="nm-input" [(ngModel)]="egfrTaille" (ngModelChange)="calcEgfr()" /></div>
+            <div class="nm-field"><label class="nm-label">Créatinine</label><input type="number" class="nm-input" [(ngModel)]="egfrCreat" (ngModelChange)="calcEgfr()" step="0.01" /></div>
+            <div class="nm-field"><label class="nm-label">Sexe</label><select class="nm-select" [(ngModel)]="egfrSexe" (ngModelChange)="calcEgfr()"><option value="M">M</option><option value="F">F</option></select></div>
+          </div>
+          <div class="nm-result-card" *ngIf="egfrResult !== null" [ngClass]="'nrc-' + egfrCkdColor">
+            <div class="nrc-main"><div class="nrc-value">{{ egfrResult | number : '1.0-0' }}</div><div class="nrc-unit">mL/min/1.73m²</div></div>
+            <div class="nrc-info"><div class="nrc-ckd-label">{{ egfrCkdStage }} — {{ egfrCkdLabel }}</div><div class="nrc-kdigo">{{ egfrKdigoText }}</div></div>
+          </div>
+        </div>
+        <div *ngIf="nephroTab === 'ckd'" class="nm-tab-content">
+          <div class="ckd-add-form">
+            <input type="date" class="nm-input" [(ngModel)]="ckdNewDate" />
+            <input type="number" class="nm-input" [(ngModel)]="ckdNewEgfr" placeholder="eGFR" />
+            <button type="button" class="nm-btn-add" (click)="addCkdMesure()">+ Ajouter</button>
+          </div>
+          <div class="ckd-timeline" *ngIf="ckdMesures.length > 0">
+            <div *ngFor="let m of ckdMesures; let idx = index" class="ckd-tl-row">
+              <span>{{ m.date }}</span> <strong>{{ m.egfr }}</strong>
+              <button type="button" class="ckd-tl-del" (click)="removeCkdMesure(idx)">✕</button>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="nephroTab === 'rejet'" class="nm-tab-content">
+          <div class="nm-form-grid">
+            <input class="nm-input" type="number" [(ngModel)]="rejCreat" (ngModelChange)="calcRejet()" placeholder="Créat" />
+            <input class="nm-input" type="number" [(ngModel)]="rejProteinurie" (ngModelChange)="calcRejet()" />
+            <input class="nm-input" type="number" [(ngModel)]="rejTension" (ngModelChange)="calcRejet()" />
+            <input class="nm-input" type="number" [(ngModel)]="rejDfg" (ngModelChange)="calcRejet()" />
+            <input class="nm-input" type="number" [(ngModel)]="rejDfgBase" (ngModelChange)="calcRejet()" />
+            <input class="nm-input" type="number" [(ngModel)]="rejFievre" (ngModelChange)="calcRejet()" />
+          </div>
+          <div class="rejet-score-card" *ngIf="rejectionScore !== null" [ngClass]="'rsc-' + rejectionRiskLevel">
+            <div class="rsc-gauge-num">{{ rejectionScore }}/100</div>
+            <div class="rsc-verdict"><div class="rsc-level" [ngClass]="'rscl-' + rejectionRiskLevel">{{ rejectionRiskLabel }}</div></div>
+          </div>
+        </div>
+        <div *ngIf="nephroTab === 'croissance'" class="nm-tab-content">
+          <div class="nm-form-grid">
+            <input class="nm-input" type="number" [(ngModel)]="croissAge" (ngModelChange)="calcCroissance()" />
+            <select class="nm-select" [(ngModel)]="croissanceSexe" (ngModelChange)="calcCroissance()"><option value="M">M</option><option value="F">F</option></select>
+            <input class="nm-input" type="number" [(ngModel)]="croissPoids" (ngModelChange)="calcCroissance()" />
+            <input class="nm-input" type="number" [(ngModel)]="croissTaille" (ngModelChange)="calcCroissance()" />
+          </div>
+          <pre *ngIf="croissResult" style="font-size:12px;overflow:auto">{{ croissResult | json }}</pre>
+        </div>
+        <div *ngIf="nephroTab === 'immuno'" class="nm-tab-content">
+          <div class="nm-form-grid">
+            <input class="nm-input" type="number" [(ngModel)]="immunoPoids" (ngModelChange)="calcImmuno()" />
+            <input class="nm-input" type="number" [(ngModel)]="immunoAge" (ngModelChange)="calcImmuno()" />
+          </div>
+          <pre *ngIf="immunoResult" style="font-size:12px">{{ immunoResult | json }}</pre>
+        </div>
+        <div *ngIf="nephroTab === 'pcr'" class="nm-tab-content">
+          <input class="nm-input" type="number" [(ngModel)]="pcrProteines" (ngModelChange)="calcPcr()" />
+          <input class="nm-input" type="number" [(ngModel)]="pcrCreatinine" (ngModelChange)="calcPcr()" />
+          <p *ngIf="pcrResult !== null">{{ pcrResult | number : '1.1-1' }} mg/mmol</p>
+        </div>
+        <div *ngIf="nephroTab === 'hydrique'" class="nm-tab-content">
+          <input class="nm-input" type="number" [(ngModel)]="hydPoids" (ngModelChange)="calcHydrique()" />
+          <input class="nm-input" type="number" [(ngModel)]="hydDiurese" (ngModelChange)="calcHydrique()" />
+          <pre *ngIf="hydResult" style="font-size:11px">{{ hydResult | json }}</pre>
+        </div>
+        <div *ngIf="nephroTab === 'fragilite'" class="nm-tab-content">
+          <input class="nm-input" type="number" [(ngModel)]="fragiliteAge" (ngModelChange)="calcFragilite()" />
+          <input class="nm-input" type="number" [(ngModel)]="fragiliteImc" (ngModelChange)="calcFragilite()" />
+          <pre *ngIf="fragiliteResult" style="font-size:11px">{{ fragiliteResult | json }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" *ngIf="showDeleteModal" (click)="cancelDelete()">
+    <div class="modal-confirm" (click)="$event.stopPropagation()">
+      <h3>Confirmer la suppression</h3>
+      <p>Supprimer #{{ itemToDelete }} ?</p>
+      <div class="modal-confirm-actions">
+        <button type="button" class="btn-cancel" (click)="cancelDelete()">Annuler</button>
+        <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast toast-success" *ngIf="toastSuccess">✓ {{ toastMsg }}</div>
+  <div class="toast toast-error" *ngIf="toastError">✗ {{ toastMsg }}</div>
+</div>

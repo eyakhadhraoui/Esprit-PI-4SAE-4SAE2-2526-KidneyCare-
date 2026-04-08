@@ -1,0 +1,979 @@
+<div class="np-wrapper">
+  <div *ngIf="loading" class="np-loading">
+    <div class="np-spinner"></div>
+    <p>Chargement de votre plan nutritionnel…</p>
+  </div>
+
+  <div *ngIf="!loading && !patientId" class="np-error-state">
+    <div class="np-error-icon">⚠️</div>
+    <h2>Session introuvable</h2>
+    <p>Veuillez vous reconnecter pour accéder à votre plan nutritionnel.</p>
+  </div>
+
+  <div *ngIf="!loading && patientId">
+    <div class="np-hero" [class.np-hero--empty]="!besoin">
+      <div class="np-hero-left">
+        <div class="np-hero-badge">🥗 Plan nutritionnel post-transplantation</div>
+        <h1 class="np-hero-title">Mon Suivi Nutritionnel</h1>
+        <p class="np-hero-sub" *ngIf="besoin">
+          Régime actif depuis le <strong>{{ formatDate(besoin.dateDebut || '') }}</strong>
+          <span *ngIf="besoin.traitementTacrolimus" class="np-med-pill">💊 Tacrolimus</span>
+          <span *ngIf="besoin.traitementPrednisone" class="np-med-pill">💊 Prednisone</span>
+        </p>
+        <p class="np-hero-sub" *ngIf="!besoin">Aucun régime défini — consultez votre médecin</p>
+        <div class="np-hero-quick" *ngIf="restrictions.length > 0 || alertesNonLues.length > 0">
+          <span *ngIf="alertesNonLues.length > 0" class="np-quick-badge np-quick-danger" (click)="setTab('alertes')">
+            🔔 {{ alertesNonLues.length }} alerte(s) non lue(s)
+          </span>
+          <span *ngIf="restrictions.length > 0" class="np-quick-badge np-quick-warn" (click)="setTab('eviter')">
+            🚫 {{ restrictions.length }} aliment(s) à éviter
+          </span>
+        </div>
+      </div>
+      <div class="np-hero-stats" *ngIf="besoin">
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🔥</span>
+          <div><span class="np-stat-v">{{ besoin.caloriesJour }}</span><span class="np-stat-u">kcal/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🧂</span>
+          <div><span class="np-stat-v">{{ besoin.potassiumMaxMg }}</span><span class="np-stat-u">mg K⁺/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🧪</span>
+          <div><span class="np-stat-v">{{ besoin.sodiumMaxMg }}</span><span class="np-stat-u">mg Na/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🥩</span>
+          <div><span class="np-stat-v">{{ besoin.proteinesMaxG }}</span><span class="np-stat-u">g prot/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🍬</span>
+          <div><span class="np-stat-v">{{ besoin.sucreMaxG }}</span><span class="np-stat-u">g sucre/j</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="np-alert-banner" *ngIf="alertesNonLues.length > 0">
+      <div class="np-alert-banner-header">
+        <span class="np-alert-banner-title">
+          <span class="np-alert-dot-anim"></span>
+          🔔 {{ alertesNonLues.length }} alerte(s) nutritionnelle(s) non lue(s)
+        </span>
+        <button type="button" class="np-btn-sm" (click)="markAllAlertsRead()">✔️ Tout marquer lu</button>
+      </div>
+      <div class="np-alert-banner-list">
+        <div *ngFor="let a of alertesNonLues" class="np-alert-banner-item">
+          <span class="np-alert-banner-ico" [style.background]="getTypeBg(a.type || '')">{{ getTypeIcon(a.type || '') }}</span>
+          <div class="np-alert-banner-body">
+            <span class="np-alert-banner-type" [style.color]="getTypeColor(a.type || '')">
+              {{ alerteLabels[a.type || ''] || a.type }}
+            </span>
+            <span class="np-alert-banner-msg">{{ a.message }}</span>
+          </div>
+          <button type="button" class="np-alert-dismiss" (click)="markAlertRead(a.id!)" title="Marquer comme lue">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="np-tabs">
+      <button type="button" class="np-tab" [class.np-tab--active]="activeTab === 'regime'" (click)="setTab('regime')">📊 Mon Régime</button>
+      <button type="button" class="np-tab" [class.np-tab--active]="activeTab === 'conseilles'" (click)="setTab('conseilles')">
+        ✅ Aliments conseillés
+        <span class="np-tab-badge np-badge-green">{{ alimentsFiltres.length }}</span>
+      </button>
+      <button type="button" class="np-tab" [class.np-tab--active]="activeTab === 'eviter'" (click)="setTab('eviter')">
+        🚫 À éviter
+        <span class="np-tab-badge np-badge-red" *ngIf="restrictions.length > 0">{{ restrictions.length }}</span>
+      </button>
+      <button type="button" class="np-tab" [class.np-tab--active]="activeTab === 'alertes'" (click)="setTab('alertes')">
+        🔔 Mes Alertes
+        <span class="np-tab-badge np-badge-red" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+      </button>
+      <button type="button" class="np-tab np-tab--scanner" (click)="openScanner()">🔍 Scanner un produit</button>
+      <button type="button" class="np-tab np-tab--menus" (click)="openMenus()">🗓️ Menus suggérés</button>
+      <button type="button" class="np-tab np-tab--meal" (click)="openMealAnalysis()">📸 Analyser un plat</button>
+      <button type="button" class="np-tab np-tab--motiv" [class.np-tab--active]="activeTab === 'motiv'" (click)="setTab('motiv')">🌟 Ma Motivation</button>
+    </div>
+
+    <!-- ONGLET RÉGIME -->
+    <div *ngIf="activeTab === 'regime'" class="np-tab-content">
+      <div *ngIf="!besoin" class="np-empty">
+        <div class="np-empty-ico">🍽️</div>
+        <p>Votre médecin n'a pas encore défini de plan nutritionnel.</p>
+        <p class="np-empty-sub">Prenez rendez-vous pour obtenir votre régime personnalisé.</p>
+      </div>
+
+      <div *ngIf="besoin">
+        <div class="np-section-title">📊 Vos limites journalières</div>
+        <p class="np-section-sub">Les barres indiquent votre limite par rapport aux valeurs adultes standards.</p>
+
+        <div class="np-limits-grid">
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background: #fff5f0">🔥</span>
+              <div>
+                <span class="np-limit-label">Calories</span>
+                <span class="np-limit-val">{{ besoin.caloriesJour }} <small>kcal/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div
+                class="np-limit-bar"
+                [style.width.%]="getLimitPercent(besoin.caloriesJour, standard.calories)"
+                [style.background]="getLimitBarColor(besoin.caloriesJour, standard.calories)"></div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Apport cible selon votre poids et traitement</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.calories }} kcal</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background: #fff5f0">🧂</span>
+              <div>
+                <span class="np-limit-label">Potassium max</span>
+                <span class="np-limit-val">{{ besoin.potassiumMaxMg }} <small>mg/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div
+                class="np-limit-bar"
+                [style.width.%]="getLimitPercent(besoin.potassiumMaxMg, standard.potassium)"
+                [style.background]="getLimitBarColor(besoin.potassiumMaxMg, standard.potassium)"></div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Protège la fonction rénale</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.potassium }} mg</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background: #ebf8ff">🧪</span>
+              <div>
+                <span class="np-limit-label">Sodium max</span>
+                <span class="np-limit-val">{{ besoin.sodiumMaxMg }} <small>mg/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div
+                class="np-limit-bar"
+                [style.width.%]="getLimitPercent(besoin.sodiumMaxMg, standard.sodium)"
+                [style.background]="getLimitBarColor(besoin.sodiumMaxMg, standard.sodium)"></div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Évitez les aliments trop salés</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.sodium }} mg</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background: #faf5ff">💜</span>
+              <div>
+                <span class="np-limit-label">Phosphore max</span>
+                <span class="np-limit-val">{{ besoin.phosphoreMaxMg }} <small>mg/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div
+                class="np-limit-bar"
+                [style.width.%]="getLimitPercent(besoin.phosphoreMaxMg, standard.phosphore)"
+                [style.background]="getLimitBarColor(besoin.phosphoreMaxMg, standard.phosphore)"></div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Limitez laitages et fruits secs</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.phosphore }} mg</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background: #f0fff4">🥩</span>
+              <div>
+                <span class="np-limit-label">Protéines max</span>
+                <span class="np-limit-val">{{ besoin.proteinesMaxG }} <small>g/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div
+                class="np-limit-bar"
+                [style.width.%]="getLimitPercent(besoin.proteinesMaxG, standard.proteines)"
+                [style.background]="getLimitBarColor(besoin.proteinesMaxG, standard.proteines)"></div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Privilégiez les protéines maigres</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.proteines }} g</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background: #fefce8">🍬</span>
+              <div>
+                <span class="np-limit-label">Sucre max</span>
+                <span class="np-limit-val">{{ besoin.sucreMaxG }} <small>g/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div
+                class="np-limit-bar"
+                [style.width.%]="getLimitPercent(besoin.sucreMaxG, standard.sucre)"
+                [style.background]="getLimitBarColor(besoin.sucreMaxG, standard.sucre)"></div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Évitez sodas, bonbons, pâtisseries</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.sucre }} g</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="np-bar-legend">
+          <span class="np-legend-item"><span class="np-legend-dot" style="background: #22c55e"></span>Proche de la norme</span>
+          <span class="np-legend-item"><span class="np-legend-dot" style="background: #f59e0b"></span>Réduit</span>
+          <span class="np-legend-item"><span class="np-legend-dot" style="background: #ef4444"></span>Très réduit</span>
+        </div>
+
+        <div class="np-section-title" style="margin-top: 32px">💡 Conseils personnalisés</div>
+        <div class="np-tips-grid">
+          <div class="np-tip-card np-tip-danger" *ngIf="besoin.traitementTacrolimus">
+            <div class="np-tip-icon">🍊</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Tacrolimus — Interactions alimentaires</span>
+              <span class="np-tip-text"
+                >Évitez absolument le <strong>pamplemousse</strong> et l'<strong>orange amère</strong>. Ces fruits augmentent la concentration de Tacrolimus dans le sang et peuvent provoquer une toxicité grave.</span
+              >
+            </div>
+          </div>
+          <div class="np-tip-card np-tip-warn" *ngIf="besoin.traitementPrednisone">
+            <div class="np-tip-icon">🍬</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Prednisone — Limiter le sucre</span>
+              <span class="np-tip-text"
+                >La Prednisone augmente le risque de <strong>diabète cortico-induit</strong>. Évitez sodas, bonbons, gâteaux et chocolat. Privilégiez les sucres lents (céréales complètes).</span
+              >
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">💧</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Hydratation quotidienne</span>
+              <span class="np-tip-text"
+                >Buvez <strong>1.5 à 2L d'eau</strong> par jour pour soutenir la fonction rénale. Évitez les jus de fruits concentrés riches en potassium (jus d'orange, de tomate).</span
+              >
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">🍳</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Mode de cuisson</span>
+              <span class="np-tip-text"
+                >Cuisinez de préférence <strong>à la vapeur ou à l'eau bouillante</strong>. Cette technique réduit significativement le potassium et le sodium des légumes et viandes.</span
+              >
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">🥗</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Répartition des repas</span>
+              <span class="np-tip-text"
+                >Répartissez votre alimentation en <strong>3 repas principaux</strong> réguliers. Évitez les sauts de repas et les grignotages non planifiés qui déséquilibrent vos apports.</span
+              >
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">📋</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Suivi médical</span>
+              <span class="np-tip-text"
+                >Consultez votre diététicien spécialisé en transplantation régulièrement. Apportez un journal alimentaire pour ajuster votre plan selon vos bilans sanguins.</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="np-notes" *ngIf="besoin.raisonCalcul">
+          <span class="np-notes-label">📝 Notes de votre médecin :</span>
+          <span class="np-notes-text">{{ besoin.raisonCalcul }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONGLET CONSEILLÉS -->
+    <div *ngIf="activeTab === 'conseilles'" class="np-tab-content">
+      <div class="np-search-bar">
+        <input
+          type="text"
+          class="np-search-input"
+          [(ngModel)]="searchAliment"
+          (ngModelChange)="filterAliments()"
+          placeholder="🔍 Rechercher un aliment…" />
+        <div class="np-cat-filters">
+          <button type="button" class="np-cat-btn" [class.np-cat-btn--active]="selectedCat === ''" (click)="selectedCat = ''; filterAliments()">Tous</button>
+          <button
+            type="button"
+            *ngFor="let cat of categories"
+            class="np-cat-btn"
+            [class.np-cat-btn--active]="selectedCat === cat"
+            [style.border-color]="getCatColor(cat)"
+            [style.color]="selectedCat === cat ? 'white' : getCatColor(cat)"
+            [style.background]="selectedCat === cat ? getCatColor(cat) : getCatBg(cat)"
+            (click)="selectedCat = cat; filterAliments()">
+            {{ getCatIcon(cat) }} {{ categorieLabels[cat] || cat }}
+          </button>
+        </div>
+      </div>
+
+      <p class="np-results-count">
+        {{ alimentsFiltres.length }} aliment(s) autorisé(s)
+        <span *ngIf="selectedCat"> dans la catégorie « {{ categorieLabels[selectedCat] }} »</span>
+      </p>
+
+      <div *ngIf="alimentsFiltres.length === 0" class="np-empty">
+        <div class="np-empty-ico">🔍</div>
+        <p>Aucun aliment trouvé.</p>
+        <p class="np-empty-sub">Essayez une autre recherche ou catégorie.</p>
+      </div>
+
+      <div class="np-food-grid">
+        <div *ngFor="let a of alimentsFiltres" class="np-food-card" [style.border-top-color]="getCatColor(a.categorie)">
+          <div class="np-food-header">
+            <span class="np-food-icon" [style.background]="getCatBg(a.categorie)">{{ getCatIcon(a.categorie) }}</span>
+            <div class="np-food-info">
+              <span class="np-food-name">{{ a.nom }}</span>
+              <span class="np-food-cat" [style.color]="getCatColor(a.categorie)">{{ categorieLabels[a.categorie] || a.categorie }}</span>
+            </div>
+            <span class="np-food-ok">✅</span>
+          </div>
+          <div class="np-food-nutrients" *ngIf="a.caloriesKcal || a.potassiumMg || a.sodiumMg || a.proteinesG || a.phosphoreMg || a.sucreG">
+            <div class="np-food-nutrients-title">Pour 100g :</div>
+            <div class="np-food-nutrients-grid">
+              <span *ngIf="a.caloriesKcal" class="np-nutrient">🔥 {{ a.caloriesKcal }} kcal</span>
+              <span *ngIf="a.potassiumMg" class="np-nutrient">🧂 {{ a.potassiumMg }}mg K⁺</span>
+              <span *ngIf="a.sodiumMg" class="np-nutrient">🧪 {{ a.sodiumMg }}mg Na</span>
+              <span *ngIf="a.phosphoreMg" class="np-nutrient">💜 {{ a.phosphoreMg }}mg P</span>
+              <span *ngIf="a.proteinesG" class="np-nutrient">🥩 {{ a.proteinesG }}g prot</span>
+              <span *ngIf="a.sucreG" class="np-nutrient">🍬 {{ a.sucreG }}g sucre</span>
+            </div>
+          </div>
+          <div class="np-food-age" *ngIf="a.ageMinimumMois">
+            <span>👶 Déconseillé avant {{ a.ageMinimumMois }} mois</span>
+          </div>
+          <p class="np-food-note" *ngIf="a.notes">📝 {{ a.notes }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONGLET À ÉVITER -->
+    <div *ngIf="activeTab === 'eviter'" class="np-tab-content">
+      <div *ngIf="restrictions.length === 0" class="np-empty np-empty--green">
+        <div class="np-empty-ico">✅</div>
+        <p>Aucun aliment restreint pour vous actuellement.</p>
+        <p class="np-empty-sub">Continuez à suivre les recommandations de votre médecin.</p>
+      </div>
+
+      <div *ngIf="restrictions.length > 0">
+        <div class="np-restrict-info">
+          ⚠️ Les aliments suivants ont été identifiés comme <strong>dangereux ou déconseillés</strong> pour votre traitement ou votre état de santé. Respectez strictement ces restrictions.
+        </div>
+
+        <div class="np-restrict-list">
+          <div *ngFor="let r of restrictions" class="np-restrict-card">
+            <div class="np-restrict-left">
+              <div class="np-restrict-icon" [style.background]="getRaisonBg(r.raison)">🚫</div>
+            </div>
+            <div class="np-restrict-body">
+              <div class="np-restrict-top">
+                <span class="np-restrict-name">{{ getAlimentNom(r.alimentId!) }}</span>
+                <span class="np-restrict-raison" [style.color]="getRaisonColor(r.raison)" [style.background]="getRaisonBg(r.raison)">
+                  {{ raisonLabels[r.raison] || r.raison }}
+                </span>
+                <span *ngIf="r.creeAutomatiquement" class="np-auto-badge">🤖 Auto</span>
+              </div>
+              <div class="np-restrict-nutrients" *ngIf="getAliment(r.alimentId!) as al">
+                <span *ngIf="al.potassiumMg" class="np-nutrient">🧂 {{ al.potassiumMg }}mg K⁺</span>
+                <span *ngIf="al.sodiumMg" class="np-nutrient">🧪 {{ al.sodiumMg }}mg Na</span>
+                <span *ngIf="al.caloriesKcal" class="np-nutrient">🔥 {{ al.caloriesKcal }}kcal</span>
+                <span *ngIf="al.interactionTacrolimus" class="np-nutrient np-n-warn">⚠️ Tacrolimus</span>
+                <span *ngIf="al.interactionCyclosporine" class="np-nutrient np-n-warn">⚠️ Cyclosporine</span>
+              </div>
+              <div class="np-restrict-meta">
+                <span class="np-restrict-date">📅 Depuis le {{ formatDate(r.dateDebut || '') }}</span>
+                <span *ngIf="r.valeurBilanDeclencheur" class="np-restrict-bilan">Bilan : {{ r.valeurBilanDeclencheur }}</span>
+              </div>
+              <div class="np-restrict-notes" *ngIf="r.notes">📝 {{ r.notes }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONGLET ALERTES -->
+    <div *ngIf="activeTab === 'alertes'" class="np-tab-content">
+      <div class="np-alerte-filters">
+        <button type="button" class="np-filter-btn" [class.active]="alerteFilter === 'all'" (click)="alerteFilter = 'all'">
+          Toutes <span class="np-filter-count">{{ toutesAlertes.length }}</span>
+        </button>
+        <button type="button" class="np-filter-btn np-filter-danger" [class.active]="alerteFilter === 'unread'" (click)="alerteFilter = 'unread'">
+          Non lues <span class="np-filter-count">{{ unreadCount }}</span>
+        </button>
+        <button type="button" class="np-filter-btn np-filter-ok" [class.active]="alerteFilter === 'read'" (click)="alerteFilter = 'read'">
+          Lues <span class="np-filter-count">{{ toutesAlertes.length - unreadCount }}</span>
+        </button>
+        <button type="button" class="np-btn-sm np-ml-auto" *ngIf="unreadCount > 0" (click)="markAllAlertsRead()">✔️ Tout marquer lu</button>
+      </div>
+
+      <div *ngIf="loadingAlertes" class="np-loading-inline">
+        <div class="np-spinner-sm"></div>
+        Chargement…
+      </div>
+
+      <div *ngIf="!loadingAlertes && alertesFiltrees.length === 0" class="np-empty">
+        <div class="np-empty-ico">🔕</div>
+        <p *ngIf="alerteFilter === 'all'">Aucune alerte enregistrée.</p>
+        <p *ngIf="alerteFilter === 'unread'">Aucune alerte non lue. 🎉</p>
+        <p *ngIf="alerteFilter === 'read'">Aucune alerte lue.</p>
+      </div>
+
+      <div class="np-alertes-list">
+        <div
+          *ngFor="let a of alertesFiltrees"
+          class="np-alerte-card"
+          [class.np-alerte-card--unread]="!a.lue"
+          [class.np-alerte-card--read]="a.lue">
+          <div class="np-alerte-card-left">
+            <div class="np-alerte-icon-wrap" [style.background]="getTypeBg(a.type || '')">
+              {{ getTypeIcon(a.type || '') }}
+            </div>
+            <span class="np-alerte-dot" *ngIf="!a.lue"></span>
+          </div>
+          <div class="np-alerte-card-body">
+            <div class="np-alerte-card-top">
+              <span class="np-alerte-type" [style.color]="getTypeColor(a.type || '')">
+                {{ alerteLabels[a.type || ''] || a.type }}
+              </span>
+              <span class="np-alerte-date">{{ formatDateTime(a.dateAlerte || '') }}</span>
+              <span class="np-alerte-status" [class.unread]="!a.lue" [class.read]="a.lue">
+                {{ a.lue ? '✅ Lue' : '🔴 Non lue' }}
+              </span>
+            </div>
+            <p class="np-alerte-msg">{{ a.message }}</p>
+            <p class="np-alerte-details" *ngIf="a.detailsTechniques">{{ a.detailsTechniques }}</p>
+          </div>
+          <div class="np-alerte-card-action" *ngIf="!a.lue">
+            <button type="button" class="np-btn-read" (click)="markAlertRead(a.id!)" title="Marquer comme lue">👁️</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONGLET MOTIVATION -->
+    <div *ngIf="activeTab === 'motiv'" class="np-tab-content motiv-tab">
+      <div class="motiv-header">
+        <h2 class="motiv-title">🌟 Tu es un champion !</h2>
+        <p class="motiv-sub">Coche tes repas — ton personnage se colorie ! 🎨</p>
+      </div>
+
+      <div class="motiv-layout">
+        <div class="motiv-left">
+          <div class="motiv-meals">
+            <div class="motiv-meal-card" [class.motiv-meal-card--done]="repasCocheAujourdhui[0]" (click)="toggleRepas(0)">
+              <div class="motiv-check" [class.motiv-check--done]="repasCocheAujourdhui[0]">
+                <span *ngIf="!repasCocheAujourdhui[0]">○</span>
+                <span *ngIf="repasCocheAujourdhui[0]" class="motiv-check-tick">✓</span>
+              </div>
+              <div class="motiv-meal-info">
+                <span class="motiv-meal-name">Petit-déjeuner 🌅</span>
+                <span class="motiv-meal-hint">colorie la tête</span>
+              </div>
+              <div class="motiv-meal-dot motiv-dot--head" [class.motiv-dot--lit]="repasCocheAujourdhui[0]"></div>
+            </div>
+
+            <div class="motiv-meal-card" [class.motiv-meal-card--done]="repasCocheAujourdhui[1]" (click)="toggleRepas(1)">
+              <div class="motiv-check" [class.motiv-check--done]="repasCocheAujourdhui[1]">
+                <span *ngIf="!repasCocheAujourdhui[1]">○</span>
+                <span *ngIf="repasCocheAujourdhui[1]" class="motiv-check-tick">✓</span>
+              </div>
+              <div class="motiv-meal-info">
+                <span class="motiv-meal-name">Déjeuner ☀️</span>
+                <span class="motiv-meal-hint">colorie le corps</span>
+              </div>
+              <div class="motiv-meal-dot motiv-dot--body" [class.motiv-dot--lit]="repasCocheAujourdhui[1]"></div>
+            </div>
+
+            <div class="motiv-meal-card" [class.motiv-meal-card--done]="repasCocheAujourdhui[2]" (click)="toggleRepas(2)">
+              <div class="motiv-check" [class.motiv-check--done]="repasCocheAujourdhui[2]">
+                <span *ngIf="!repasCocheAujourdhui[2]">○</span>
+                <span *ngIf="repasCocheAujourdhui[2]" class="motiv-check-tick">✓</span>
+              </div>
+              <div class="motiv-meal-info">
+                <span class="motiv-meal-name">Dîner 🌙</span>
+                <span class="motiv-meal-hint">colorie les jambes</span>
+              </div>
+              <div class="motiv-meal-dot motiv-dot--legs" [class.motiv-dot--lit]="repasCocheAujourdhui[2]"></div>
+            </div>
+          </div>
+
+          <div class="motiv-progress-wrap">
+            <div class="motiv-progress-bar">
+              <div class="motiv-progress-fill" [style.width.%]="(totalCoche / 3) * 100" [class.motiv-progress-gold]="totalCoche === 3"></div>
+            </div>
+            <span class="motiv-progress-label">{{ totalCoche }} / 3</span>
+          </div>
+
+          <p class="motiv-msg" *ngIf="totalCoche === 0">Coche un repas pour commencer ! 🍽️</p>
+          <p class="motiv-msg motiv-msg--1" *ngIf="totalCoche === 1">Super ! Continue 💪</p>
+          <p class="motiv-msg motiv-msg--2" *ngIf="totalCoche === 2">Excellent ! Plus qu'un ! 🔥</p>
+          <p class="motiv-msg motiv-msg--3" *ngIf="totalCoche === 3">🏆 PARFAIT ! Tu es INCROYABLE ! 🎉</p>
+        </div>
+
+        <div class="motiv-right">
+          <div class="motiv-character-wrap" [class.motiv-character--celebrate]="totalCoche === 3">
+            <div class="motiv-stars" *ngIf="totalCoche === 3">
+              <span class="motiv-star s1">⭐</span>
+              <span class="motiv-star s2">🌟</span>
+              <span class="motiv-star s3">⭐</span>
+            </div>
+
+            <svg class="motiv-body-svg" viewBox="0 0 120 210" xmlns="http://www.w3.org/2000/svg">
+              <rect x="34" y="122" width="20" height="62" rx="10" class="motiv-part motiv-part--legs" [class.motiv-part--filled]="repasCocheAujourdhui[2]" />
+              <rect x="66" y="122" width="20" height="62" rx="10" class="motiv-part motiv-part--legs" [class.motiv-part--filled]="repasCocheAujourdhui[2]" />
+              <ellipse cx="44" cy="184" rx="14" ry="7" class="motiv-part motiv-part--legs" [class.motiv-part--filled]="repasCocheAujourdhui[2]" />
+              <ellipse cx="76" cy="184" rx="14" ry="7" class="motiv-part motiv-part--legs" [class.motiv-part--filled]="repasCocheAujourdhui[2]" />
+              <rect x="28" y="68" width="64" height="58" rx="18" class="motiv-part motiv-part--body" [class.motiv-part--filled]="repasCocheAujourdhui[1]" />
+              <rect x="6" y="72" width="24" height="14" rx="7" class="motiv-part motiv-part--body" [class.motiv-part--filled]="repasCocheAujourdhui[1]" transform="rotate(-20 6 72)" />
+              <rect x="90" y="72" width="24" height="14" rx="7" class="motiv-part motiv-part--body" [class.motiv-part--filled]="repasCocheAujourdhui[1]" transform="rotate(20 114 72)" />
+              <circle cx="12" cy="87" r="8" class="motiv-part motiv-part--body" [class.motiv-part--filled]="repasCocheAujourdhui[1]" />
+              <circle cx="108" cy="87" r="8" class="motiv-part motiv-part--body" [class.motiv-part--filled]="repasCocheAujourdhui[1]" />
+              <circle cx="60" cy="36" r="30" class="motiv-part motiv-part--head" [class.motiv-part--filled]="repasCocheAujourdhui[0]" />
+              <ellipse cx="60" cy="8" rx="22" ry="8" class="motiv-part motiv-part--hair" [class.motiv-part--filled]="repasCocheAujourdhui[0]" />
+              <g *ngIf="repasCocheAujourdhui[0]" class="motiv-face">
+                <circle cx="50" cy="32" r="5" fill="#fff" />
+                <circle cx="70" cy="32" r="5" fill="#fff" />
+                <circle cx="51.5" cy="33" r="2.5" fill="#1e293b" />
+                <circle cx="71.5" cy="33" r="2.5" fill="#1e293b" />
+                <path d="M 49 44 Q 60 52 71 44" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" />
+                <circle cx="43" cy="42" r="5" fill="#fda4af" opacity="0.7" />
+                <circle cx="77" cy="42" r="5" fill="#fda4af" opacity="0.7" />
+              </g>
+              <g *ngIf="!repasCocheAujourdhui[0]">
+                <circle cx="50" cy="32" r="4" fill="#d1d5db" />
+                <circle cx="70" cy="32" r="4" fill="#d1d5db" />
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SCANNER -->
+<div class="sc-overlay" *ngIf="showScanner" (click)="closeScanner()"></div>
+<div class="sc-modal" *ngIf="showScanner" (click)="$event.stopPropagation()">
+  <div class="sc-header">
+    <div class="sc-header-left">
+      <span class="sc-header-icon">🔍</span>
+      <div>
+        <h2 class="sc-title">Scanner un produit</h2>
+        <p class="sc-subtitle">Vérifiez si un aliment est compatible avec votre régime</p>
+      </div>
+    </div>
+    <button type="button" class="sc-close" (click)="closeScanner()">✕</button>
+  </div>
+
+  <div class="sc-mode-tabs">
+    <button type="button" class="sc-mode-btn" [class.sc-mode-btn--active]="scanMode === 'text'" (click)="scanMode = 'text'; resetScan()">📝 Nom du produit</button>
+    <button type="button" class="sc-mode-btn" [class.sc-mode-btn--active]="scanMode === 'barcode'" (click)="scanMode = 'barcode'; resetScan()">🔢 Code-barres</button>
+  </div>
+
+  <div class="sc-search">
+    <input
+      class="sc-input"
+      [(ngModel)]="scanQuery"
+      (keyup.enter)="searchProduct()"
+      [placeholder]="scanMode === 'text' ? '🍕 Ex : pizza, yaourt nature, pâtes...' : '📦 Ex : 3017620422003'" />
+    <button type="button" class="sc-search-btn" (click)="searchProduct()" [disabled]="scanLoading || !scanQuery.trim()">
+      <span *ngIf="!scanLoading">Rechercher</span>
+      <span *ngIf="scanLoading" class="sc-spin">⏳</span>
+    </button>
+  </div>
+
+  <div *ngIf="scanMode === 'barcode'" class="sc-photo-row">
+    <label class="sc-photo-btn" [class.sc-photo-btn--loading]="photoLoading">
+      <input type="file" accept="image/*" (change)="onPhotoSelected($event)" style="display: none" />
+      <span *ngIf="!photoLoading">📷 Envoyer une photo du code-barres</span>
+      <span *ngIf="photoLoading" class="sc-spin">⏳ Analyse en cours…</span>
+    </label>
+    <span class="sc-camera-hint">Prenez en photo le code-barres du produit</span>
+  </div>
+  <div *ngIf="photoError" class="sc-camera-error">⚠️ {{ photoError }}</div>
+
+  <div *ngIf="scanLoading" class="sc-loading">
+    <div class="sc-spinner"></div>
+    <span>Recherche en cours…</span>
+  </div>
+
+  <div *ngIf="!scanLoading && scanQuery && scanResults.length === 0 && !scanSelected" class="sc-empty">
+    <div class="sc-empty-ico">🤷</div>
+    <p>Aucun produit trouvé pour « {{ scanQuery }} »</p>
+    <p class="sc-empty-sub">Essayez un nom différent ou vérifiez le code-barres.</p>
+  </div>
+
+  <div *ngIf="!scanLoading && scanResults.length > 0 && !scanSelected" class="sc-results">
+    <p class="sc-results-title">{{ scanResults.length }} produit(s) trouvé(s) — cliquez pour analyser</p>
+    <div class="sc-results-grid">
+      <div *ngFor="let p of scanResults" class="sc-result-card" (click)="analyzeProduct(p)">
+        <img *ngIf="p.image_front_url" [src]="p.image_front_url" class="sc-result-img" alt="" />
+        <div *ngIf="!p.image_front_url" class="sc-result-img-placeholder">🍽️</div>
+        <div class="sc-result-info">
+          <span class="sc-result-name">{{ p.product_name }}</span>
+          <span class="sc-result-brand" *ngIf="p.brands">{{ p.brands }}</span>
+        </div>
+        <span class="sc-result-arrow">→</span>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="scanSelected && scanNutrients" class="sc-analysis">
+    <button type="button" class="sc-back" (click)="scanSelected = null; scanVerdict = null">← Retour aux résultats</button>
+
+    <div class="sc-analysis-header">
+      <img *ngIf="scanSelected.image_front_url" [src]="scanSelected.image_front_url" class="sc-analysis-img" alt="" />
+      <div *ngIf="!scanSelected.image_front_url" class="sc-analysis-img-placeholder">🍽️</div>
+      <div>
+        <h3 class="sc-analysis-name">{{ scanSelected.product_name }}</h3>
+        <span class="sc-analysis-brand" *ngIf="scanSelected.brands">{{ scanSelected.brands }}</span>
+        <span class="sc-analysis-per">Valeurs pour 100g</span>
+      </div>
+    </div>
+
+    <div class="sc-nutrients">
+      <div class="sc-nutrient" *ngIf="scanNutrients.kcal">
+        <span class="sc-nut-ico">🔥</span>
+        <span class="sc-nut-val">{{ scanNutrients.kcal | number : '1.0-0' }}</span>
+        <span class="sc-nut-unit">kcal</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(scanNutrients.kcal, besoin.caloriesJour!)"
+            [style.background]="getScanNutrientPct(scanNutrients.kcal, besoin.caloriesJour!) > 40 ? '#ef4444' : '#22c55e'"></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="scanNutrients.potassiumMg">
+        <span class="sc-nut-ico">🧂</span>
+        <span class="sc-nut-val">{{ scanNutrients.potassiumMg | number : '1.0-0' }}</span>
+        <span class="sc-nut-unit">mg K⁺</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(scanNutrients.potassiumMg, besoin.potassiumMaxMg!)"
+            [style.background]="
+              getScanNutrientPct(scanNutrients.potassiumMg, besoin.potassiumMaxMg!) > 50
+                ? '#ef4444'
+                : getScanNutrientPct(scanNutrients.potassiumMg, besoin.potassiumMaxMg!) > 25
+                  ? '#f59e0b'
+                  : '#22c55e'
+            "></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="scanNutrients.sodiumMg">
+        <span class="sc-nut-ico">🧪</span>
+        <span class="sc-nut-val">{{ scanNutrients.sodiumMg | number : '1.0-0' }}</span>
+        <span class="sc-nut-unit">mg Na</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(scanNutrients.sodiumMg, besoin.sodiumMaxMg!)"
+            [style.background]="
+              getScanNutrientPct(scanNutrients.sodiumMg, besoin.sodiumMaxMg!) > 40
+                ? '#ef4444'
+                : getScanNutrientPct(scanNutrients.sodiumMg, besoin.sodiumMaxMg!) > 20
+                  ? '#f59e0b'
+                  : '#22c55e'
+            "></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="scanNutrients.phosphoreMg">
+        <span class="sc-nut-ico">💜</span>
+        <span class="sc-nut-val">{{ scanNutrients.phosphoreMg | number : '1.0-0' }}</span>
+        <span class="sc-nut-unit">mg P</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(scanNutrients.phosphoreMg, besoin.phosphoreMaxMg!)"
+            [style.background]="
+              getScanNutrientPct(scanNutrients.phosphoreMg, besoin.phosphoreMaxMg!) > 60
+                ? '#ef4444'
+                : getScanNutrientPct(scanNutrients.phosphoreMg, besoin.phosphoreMaxMg!) > 30
+                  ? '#f59e0b'
+                  : '#22c55e'
+            "></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="scanNutrients.proteinesG">
+        <span class="sc-nut-ico">🥩</span>
+        <span class="sc-nut-val">{{ scanNutrients.proteinesG | number : '1.0-1' }}</span>
+        <span class="sc-nut-unit">g prot</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(scanNutrients.proteinesG, besoin.proteinesMaxG!)"
+            [style.background]="getScanNutrientPct(scanNutrients.proteinesG, besoin.proteinesMaxG!) > 60 ? '#f59e0b' : '#22c55e'"></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="scanNutrients.sucreG">
+        <span class="sc-nut-ico">🍬</span>
+        <span class="sc-nut-val">{{ scanNutrients.sucreG | number : '1.0-1' }}</span>
+        <span class="sc-nut-unit">g sucre</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(scanNutrients.sucreG, besoin.sucreMaxG!)"
+            [style.background]="
+              getScanNutrientPct(scanNutrients.sucreG, besoin.sucreMaxG!) > 80
+                ? '#ef4444'
+                : getScanNutrientPct(scanNutrients.sucreG, besoin.sucreMaxG!) > 40
+                  ? '#f59e0b'
+                  : '#22c55e'
+            "></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc-warnings" *ngIf="scanWarnings.length > 0">
+      <div *ngFor="let w of scanWarnings" class="sc-warning-item">{{ w }}</div>
+    </div>
+
+    <div class="sc-no-plan" *ngIf="!besoin">ℹ️ Aucun plan nutritionnel défini — les valeurs s'affichent sans comparaison personnalisée.</div>
+
+    <div
+      class="sc-verdict"
+      *ngIf="scanVerdict"
+      [class.sc-verdict--ok]="scanVerdict === 'ok'"
+      [class.sc-verdict--warn]="scanVerdict === 'warn'"
+      [class.sc-verdict--danger]="scanVerdict === 'danger'">
+      <span class="sc-verdict-ico">{{ scanVerdict === 'ok' ? '✅' : scanVerdict === 'warn' ? '⚠️' : '❌' }}</span>
+      <div>
+        <span class="sc-verdict-label">{{
+          scanVerdict === 'ok'
+            ? 'Ce produit semble compatible avec votre régime'
+            : scanVerdict === 'warn'
+              ? 'À consommer avec modération'
+              : 'Produit déconseillé — risque pour votre santé'
+        }}</span>
+        <span class="sc-verdict-sub">{{
+          scanVerdict === 'ok'
+            ? 'Aucune restriction détectée pour 100g'
+            : scanVerdict === 'warn'
+              ? 'Consultez les avertissements ci-dessus'
+              : 'Voir les alertes détaillées ci-dessus'
+        }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ANALYSE PLAT -->
+<div class="sc-overlay" *ngIf="showMealAnalysis" (click)="closeMealAnalysis()"></div>
+<div class="sc-modal" *ngIf="showMealAnalysis" (click)="$event.stopPropagation()">
+  <div class="sc-header">
+    <div class="sc-header-left">
+      <span class="sc-header-icon">📸</span>
+      <div>
+        <h2 class="sc-title">Analyser un plat</h2>
+        <p class="sc-subtitle">Prenez une photo de votre repas — l'IA identifie les aliments</p>
+      </div>
+    </div>
+    <button type="button" class="sc-close" (click)="closeMealAnalysis()">✕</button>
+  </div>
+
+  <div *ngIf="!mealAnalysisLoading && !mealAnalysisResult">
+    <label class="ma-upload-zone">
+      <input type="file" accept="image/*" (change)="onMealPhotoSelected($event)" style="display: none" />
+      <div class="ma-upload-inner">
+        <div class="ma-upload-ico">📷</div>
+        <span class="ma-upload-title">Choisir une photo de repas</span>
+        <span class="ma-upload-hint">JPG ou PNG — l'IA détecte automatiquement les aliments</span>
+      </div>
+    </label>
+
+    <div *ngIf="mealPhotoPreview" class="ma-preview-wrap">
+      <img [src]="mealPhotoPreview" class="ma-preview-img" alt="Aperçu repas" />
+    </div>
+
+    <div *ngIf="mealAnalysisError" class="sc-camera-error">⚠️ {{ mealAnalysisError }}</div>
+  </div>
+
+  <div *ngIf="mealAnalysisLoading" class="sc-loading">
+    <div class="sc-spinner"></div>
+    <span>Analyse en cours… l'IA identifie votre repas</span>
+  </div>
+
+  <div *ngIf="mealAnalysisResult && !mealAnalysisLoading">
+    <button type="button" class="sc-back" (click)="resetMealAnalysis()">← Analyser un autre plat</button>
+
+    <div class="ma-result-header">
+      <img *ngIf="mealPhotoPreview" [src]="mealPhotoPreview" class="ma-result-img" alt="" />
+      <div class="ma-result-foods">
+        <span class="ma-foods-title">🍽️ Aliments identifiés</span>
+        <div *ngFor="let f of mealAnalysisResult.foods" class="ma-food-row">
+          <span class="ma-food-name">{{ f.name }}</span>
+          <span
+            class="ma-food-conf"
+            [class.ma-conf--high]="f.confidence > 70"
+            [class.ma-conf--med]="f.confidence > 40 && f.confidence <= 70"
+            [class.ma-conf--low]="f.confidence <= 40 && f.confidence > 0"
+            [class.ma-conf--unknown]="f.confidence === 0">
+            {{ f.confidence === 0 ? '?' : f.confidence + '%' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sc-nutrients" style="margin-top: 16px">
+      <div class="sc-nutrient" *ngIf="mealAnalysisResult.kcal">
+        <span class="sc-nut-ico">🔥</span>
+        <span class="sc-nut-val">{{ mealAnalysisResult.kcal }}</span>
+        <span class="sc-nut-unit">kcal</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(mealAnalysisResult.kcal, besoin.caloriesJour!)"
+            [style.background]="getScanNutrientPct(mealAnalysisResult.kcal, besoin.caloriesJour!) > 60 ? '#ef4444' : '#22c55e'"></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="mealAnalysisResult.proteines">
+        <span class="sc-nut-ico">🥩</span>
+        <span class="sc-nut-val">{{ mealAnalysisResult.proteines }}</span>
+        <span class="sc-nut-unit">g prot</span>
+        <div class="sc-nut-bar-bg" *ngIf="besoin">
+          <div
+            class="sc-nut-bar"
+            [style.width.%]="getScanNutrientPct(mealAnalysisResult.proteines, besoin.proteinesMaxG!)"
+            [style.background]="getScanNutrientPct(mealAnalysisResult.proteines, besoin.proteinesMaxG!) > 60 ? '#f59e0b' : '#22c55e'"></div>
+        </div>
+      </div>
+      <div class="sc-nutrient" *ngIf="mealAnalysisResult.glucides">
+        <span class="sc-nut-ico">🍞</span>
+        <span class="sc-nut-val">{{ mealAnalysisResult.glucides }}</span>
+        <span class="sc-nut-unit">g glucides</span>
+      </div>
+      <div class="sc-nutrient" *ngIf="mealAnalysisResult.lipides">
+        <span class="sc-nut-ico">🫒</span>
+        <span class="sc-nut-val">{{ mealAnalysisResult.lipides }}</span>
+        <span class="sc-nut-unit">g lipides</span>
+      </div>
+    </div>
+
+    <div class="sc-warnings" *ngIf="mealAnalysisResult.warnings.length > 0">
+      <div *ngFor="let w of mealAnalysisResult.warnings" class="sc-warning-item">{{ w }}</div>
+    </div>
+
+    <div
+      class="sc-verdict"
+      [class.sc-verdict--ok]="mealAnalysisResult.verdict === 'ok'"
+      [class.sc-verdict--warn]="mealAnalysisResult.verdict === 'warn'"
+      [class.sc-verdict--danger]="mealAnalysisResult.verdict === 'danger'">
+      <span class="sc-verdict-ico">{{ mealAnalysisResult.verdict === 'ok' ? '✅' : mealAnalysisResult.verdict === 'warn' ? '⚠️' : '❌' }}</span>
+      <div>
+        <span class="sc-verdict-label">{{
+          mealAnalysisResult.verdict === 'ok'
+            ? 'Ce repas est adapté à votre régime'
+            : mealAnalysisResult.verdict === 'warn'
+              ? 'À consommer avec précaution'
+              : 'Ce repas est déconseillé — risque détecté'
+        }}</span>
+        <span class="sc-verdict-sub">Analyse basée sur vos limites journalières personnalisées</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MENUS SEMAINE -->
+<div class="mn-overlay" *ngIf="showMenus" (click)="closeMenus()"></div>
+<div class="mn-modal" *ngIf="showMenus" (click)="$event.stopPropagation()">
+  <div class="mn-header">
+    <div class="mn-header-left">
+      <span class="mn-header-icon">🗓️</span>
+      <div>
+        <h2 class="mn-header-title">Menus suggérés de la semaine</h2>
+        <p class="mn-header-sub">3 propositions par jour — choisissez celle qui vous convient</p>
+      </div>
+    </div>
+    <div class="mn-header-actions">
+      <button type="button" class="mn-btn-regen" (click)="regenererMenus()" [disabled]="menusLoading" title="Générer de nouveaux menus">
+        <span [class.mn-spin]="menusLoading">🔄</span> Régénérer
+      </button>
+      <button type="button" class="mn-btn-close" (click)="closeMenus()">✕</button>
+    </div>
+  </div>
+
+  <div *ngIf="menusLoading" class="mn-loading">
+    <div class="mn-loader"></div>
+    <p>Génération de vos menus personnalisés…</p>
+  </div>
+
+  <div *ngIf="!menusLoading && menusError" class="mn-error"><span>⚠️</span> {{ menusError }}</div>
+
+  <div *ngIf="!menusLoading && !menusError && joursList.length" class="mn-body">
+    <div class="mn-days-nav">
+      <button
+        type="button"
+        *ngFor="let jour of joursList"
+        class="mn-day-btn"
+        [class.mn-day-btn--active]="activeJour === jour"
+        [class.mn-day-btn--chosen]="menuChoisi[jour] !== undefined"
+        (click)="setActiveJour(jour)">
+        <span class="mn-day-label">{{ formatJour(jour) }}</span>
+        <span class="mn-day-check" *ngIf="menuChoisi[jour] !== undefined">✓</span>
+      </button>
+    </div>
+
+    <div class="mn-cards-row" [class.mn-cards-visible]="menuCardVisible">
+      <div
+        *ngFor="let menu of menusJourActif; let i = index"
+        class="mn-card"
+        [class.mn-card--chosen]="menuChoisi[activeJour] === i"
+        [style.animation-delay.ms]="i * 80"
+        (click)="choisirMenu(activeJour, i)">
+        <div class="mn-card-badge" [class.mn-card-badge--chosen]="menuChoisi[activeJour] === i">
+          <span *ngIf="menuChoisi[activeJour] !== i">Menu {{ i + 1 }}</span>
+          <span *ngIf="menuChoisi[activeJour] === i">✓ Choisi</span>
+        </div>
+
+        <div class="mn-card-totals">
+          <span class="mn-total-pill mn-total-cal">🔥 {{ menu.totalCalories | number : '1.0-0' }} kcal</span>
+          <span class="mn-total-pill mn-total-prot">🥩 {{ menu.totalProteines | number : '1.0-0' }} g prot</span>
+          <span class="mn-total-pill mn-total-k">🧂 {{ menu.totalPotassium | number : '1.0-0' }} mg K⁺</span>
+        </div>
+
+        <div class="mn-repas-list">
+          <div *ngFor="let repas of (menu.repas || [])" class="mn-repas">
+            <div class="mn-repas-header">
+              <span class="mn-repas-icon">{{ getRepasIcon(repas.type || '') }}</span>
+              <span class="mn-repas-label">{{ getRepasLabel(repas.type || '') }}</span>
+              <span class="mn-repas-kcal">{{ repas.totalCalories | number : '1.0-0' }} kcal</span>
+            </div>
+            <ul class="mn-aliments">
+              <li *ngFor="let a of (repas.aliments || [])" class="mn-aliment">
+                <span class="mn-aliment-nom">{{ a.nom }}</span>
+                <span class="mn-aliment-qty">{{ portionG(a) }} g</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="mn-btn-choisir"
+          [class.mn-btn-choisir--active]="menuChoisi[activeJour] === i"
+          (click)="$event.stopPropagation(); choisirMenu(activeJour, i)">
+          {{ menuChoisi[activeJour] === i ? '✓ Menu sélectionné' : 'Choisir ce menu' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
