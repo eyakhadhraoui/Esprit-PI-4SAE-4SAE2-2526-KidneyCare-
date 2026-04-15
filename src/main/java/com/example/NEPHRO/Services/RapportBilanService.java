@@ -1,9 +1,14 @@
 package com.example.NEPHRO.Services;
 
+import com.example.NEPHRO.Entities.DossierMedical;
+import com.example.NEPHRO.Entities.Patient;
 import com.example.NEPHRO.Entities.RapportBilan;
+import com.example.NEPHRO.Repository.DossierMedicalRepository;
+import com.example.NEPHRO.Repository.PatientRepository;
 import com.example.NEPHRO.Repository.RapportBilanRepository;
 import com.example.NEPHRO.dto.RapportBilanDTO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,9 +19,13 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class RapportBilanService {
 
     private final RapportBilanRepository rapportBilanRepository;
+    private final DossierMedicalRepository dossierMedicalRepository;
+    private final PatientRepository patientRepository;
+    private final NotificationService notificationService;
 
     private RapportBilanDTO toDTO(RapportBilan e) {
         RapportBilanDTO dto = new RapportBilanDTO();
@@ -30,6 +39,8 @@ public class RapportBilanService {
         dto.setPartageFamille(e.getPartageFamille());
         dto.setDateGeneration(e.getDateGeneration());
         dto.setGenerePar(e.getGenerePar());
+        dto.setPrescriptionId(e.getPrescriptionId());
+        dto.setSignatureDataUrl(e.getSignatureDataUrl());
         return dto;
     }
 
@@ -44,12 +55,47 @@ public class RapportBilanService {
                 .partageFamille(dto.getPartageFamille() != null ? dto.getPartageFamille() : false)
                 .dateGeneration(dto.getDateGeneration() != null ? dto.getDateGeneration() : LocalDateTime.now())
                 .generePar(dto.getGenerePar())
+                .prescriptionId(dto.getPrescriptionId())
+                .signatureDataUrl(dto.getSignatureDataUrl())
                 .build();
     }
 
     public RapportBilanDTO create(RapportBilanDTO dto) {
+        boolean notifyPatient = Boolean.TRUE.equals(dto.getNotifyPatient());
         if (dto.getDateGeneration() == null) dto.setDateGeneration(LocalDateTime.now());
-        return toDTO(rapportBilanRepository.save(toEntity(dto)));
+        RapportBilan saved = rapportBilanRepository.save(toEntity(dto));
+        if (notifyPatient) {
+            envoyerEmailPatientSiPossible(saved);
+        }
+        return toDTO(saved);
+    }
+
+    private void envoyerEmailPatientSiPossible(RapportBilan rapport) {
+        try {
+            DossierMedical dm = dossierMedicalRepository.findById(rapport.getDossierId()).orElse(null);
+            if (dm == null) {
+                log.warn("Rapport {} : dossier {} introuvable — email non envoyé", rapport.getId(), rapport.getDossierId());
+                return;
+            }
+            Patient patient = patientRepository.findById(dm.getIdPatient()).orElse(null);
+            if (patient == null || patient.getEmail() == null || patient.getEmail().isBlank()) {
+                log.warn("Rapport {} : patient sans email — notification ignorée", rapport.getId());
+                return;
+            }
+            String nom = (patient.getFirstName() + " " + patient.getLastName()).trim();
+            notificationService.envoyerRapportBilanAuPatient(
+                    patient.getEmail(),
+                    nom.isEmpty() ? "Patient" : nom,
+                    rapport.getDossierId(),
+                    rapport.getId(),
+                    rapport.getPeriodeDebut(),
+                    rapport.getPeriodeFin(),
+                    rapport.getCommentaireMedecin(),
+                    rapport.getSignatureDataUrl()
+            );
+        } catch (Exception e) {
+            log.error("Échec notification rapport bilan {} : {}", rapport.getId(), e.getMessage());
+        }
     }
 
     public RapportBilanDTO update(Long id, RapportBilanDTO dto) {
@@ -58,6 +104,8 @@ public class RapportBilanService {
         e.setPartageFamille(dto.getPartageFamille() != null ? dto.getPartageFamille() : e.getPartageFamille());
         e.setResultatsIds(dto.getResultatsIds() != null ? new java.util.ArrayList<>(dto.getResultatsIds()) : e.getResultatsIds());
         if (dto.getPdfUrl() != null) e.setPdfUrl(dto.getPdfUrl());
+        if (dto.getPrescriptionId() != null) e.setPrescriptionId(dto.getPrescriptionId());
+        if (dto.getSignatureDataUrl() != null) e.setSignatureDataUrl(dto.getSignatureDataUrl());
         return toDTO(rapportBilanRepository.save(e));
     }
 

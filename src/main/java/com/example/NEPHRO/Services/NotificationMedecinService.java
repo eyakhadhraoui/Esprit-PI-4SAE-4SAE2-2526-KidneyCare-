@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class NotificationMedecinService {
 
     private final NotificationMedecinRepository notificationMedecinRepository;
+    private final NotificationWebSocketService notificationWebSocketService;
 
     private static NotificationMedecinDTO toDTO(NotificationMedecin n) {
         NotificationMedecinDTO dto = new NotificationMedecinDTO();
@@ -32,7 +33,8 @@ public class NotificationMedecinService {
         dto.setLu(n.getLu());
         dto.setDateCreation(n.getDateCreation());
         dto.setSeverity(
-                n.getType() == TypeNotificationMedecin.MEDICAMENT_NON_PRIS || n.getType() == TypeNotificationMedecin.ALERTE_LABO
+                n.getType() == TypeNotificationMedecin.MEDICAMENT_NON_PRIS
+                        || n.getType() == TypeNotificationMedecin.ALERTE_LABO
                         ? "CRITICAL" : "WARNING");
         return dto;
     }
@@ -60,6 +62,12 @@ public class NotificationMedecinService {
                 .dateCreation(java.time.LocalDateTime.now())
                 .build();
         notificationMedecinRepository.save(notif);
+        try {
+            notificationWebSocketService.notifyMedecinNouveauResultatPatient(
+                    idMedecin, titre, message, idDossierMedical, idResultatLaboratoire);
+        } catch (Exception e) {
+            // Ne pas bloquer la persistance si le push temps réel échoue
+        }
     }
 
     /**
@@ -88,6 +96,11 @@ public class NotificationMedecinService {
                 .dateCreation(java.time.LocalDateTime.now())
                 .build();
         notificationMedecinRepository.save(notif);
+        try {
+            notificationWebSocketService.notifyMedecinAlerteLabo(
+                    idMedecin, titre, message, idDossierMedical, idResultatLaboratoire);
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -111,6 +124,11 @@ public class NotificationMedecinService {
                 .dateCreation(java.time.LocalDateTime.now())
                 .build();
         notificationMedecinRepository.save(notif);
+        try {
+            notificationWebSocketService.notifyMedecinAlerteLabo(
+                    idMedecin, "Tendance biologique (néphrologie)", corps, idDossierMedical, idResultatLaboratoire);
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -138,6 +156,41 @@ public class NotificationMedecinService {
                 .dateCreation(java.time.LocalDateTime.now())
                 .build();
         notificationMedecinRepository.save(notif);
+    }
+
+    /**
+     * Rappel : des examens prescrits ne sont pas encore réalisés après un délai.
+     * Notif persistée + push temps réel médecin.
+     */
+    public void creerPourRappelTestsNonFaits(Long idMedecin,
+                                            Long idDossierMedical,
+                                            Long idPatient,
+                                            String nomPatient,
+                                            Long prescriptionId,
+                                            String message) {
+        if (idMedecin == null || idDossierMedical == null) return;
+        String titre = "Rappel : tests non réalisés";
+        String corps = message != null ? message : "Des analyses prescrites ne sont pas encore réalisées.";
+        NotificationMedecin notif = NotificationMedecin.builder()
+                .idMedecin(idMedecin)
+                .idDossierMedical(idDossierMedical)
+                .idPatient(idPatient)
+                .patientName(nomPatient != null ? nomPatient : null)
+                .type(TypeNotificationMedecin.RAPPEL_TEST_NON_FAIT)
+                .titre(titre)
+                .message(corps)
+                // On stocke l'id prescription dans idResultatLaboratoire (champ référence) pour navigation simple côté front.
+                .idResultatLaboratoire(prescriptionId)
+                .lu(false)
+                .dateCreation(java.time.LocalDateTime.now())
+                .build();
+        notificationMedecinRepository.save(notif);
+        try {
+            notificationWebSocketService.notifyMedecinRappelTestNonFait(
+                    idMedecin, titre, corps, idDossierMedical, prescriptionId
+            );
+        } catch (Exception ignored) {
+        }
     }
 
     @Transactional(readOnly = true)

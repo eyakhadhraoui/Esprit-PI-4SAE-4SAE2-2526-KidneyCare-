@@ -1,5 +1,6 @@
 package com.example.NEPHRO.Services;
 
+import com.example.NEPHRO.dto.MedecinNotificationPayload;
 import com.example.NEPHRO.dto.NotificationPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,7 +8,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * Envoie les notifications temps réel aux patients via WebSocket (STOMP).
+ * Notifications temps réel via WebSocket (STOMP) : patients {@code /topic/patient/{id}},
+ * médecins {@code /topic/medecin/{id}}.
  */
 @Service
 @RequiredArgsConstructor
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class NotificationWebSocketService {
 
     private static final String TOPIC_PATIENT_PREFIX = "/topic/patient/";
+    private static final String TOPIC_MEDECIN_PREFIX = "/topic/medecin/";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -77,6 +80,60 @@ public class NotificationWebSocketService {
             log.info("Notification WebSocket patient {} : type {}", idPatient, payload.getType());
         } catch (Exception e) {
             log.warn("Échec envoi WebSocket patient {}: {}", idPatient, e.getMessage());
+        }
+    }
+
+    /**
+     * Patient a saisi un nouveau résultat de laboratoire — alerte temps réel pour le médecin du dossier.
+     */
+    public void notifyMedecinNouveauResultatPatient(Long idMedecin, String titre, String corps,
+                                                    Long idDossierMedical, Long idResultatLaboratoire) {
+        if (idMedecin == null) return;
+        MedecinNotificationPayload payload = new MedecinNotificationPayload(
+                MedecinNotificationPayload.TYPE_NOUVEAU_TEST_LABO,
+                titre != null ? titre : "Nouveau résultat de test laboratoire",
+                corps,
+                idDossierMedical,
+                idResultatLaboratoire
+        );
+        sendToMedecin(idMedecin, payload);
+    }
+
+    /** Alerte labo critique / tendance (notification médecin déjà persistée). */
+    public void notifyMedecinAlerteLabo(Long idMedecin, String titre, String corps,
+                                        Long idDossierMedical, Long idResultatLaboratoire) {
+        if (idMedecin == null) return;
+        MedecinNotificationPayload payload = new MedecinNotificationPayload(
+                MedecinNotificationPayload.TYPE_ALERTE_LABO,
+                titre != null ? titre : "Alerte laboratoire",
+                corps,
+                idDossierMedical,
+                idResultatLaboratoire
+        );
+        sendToMedecin(idMedecin, payload);
+    }
+
+    /** Rappel : tests prescrits non réalisés après délai (dashboard médecin). */
+    public void notifyMedecinRappelTestNonFait(Long idMedecin, String titre, String corps,
+                                               Long idDossierMedical, Long prescriptionId) {
+        if (idMedecin == null) return;
+        MedecinNotificationPayload payload = new MedecinNotificationPayload(
+                MedecinNotificationPayload.TYPE_RAPPEL_TEST_NON_FAIT,
+                titre != null ? titre : "Tests non réalisés (rappel)",
+                corps,
+                idDossierMedical,
+                prescriptionId
+        );
+        sendToMedecin(idMedecin, payload);
+    }
+
+    private void sendToMedecin(Long idMedecin, MedecinNotificationPayload payload) {
+        String destination = TOPIC_MEDECIN_PREFIX + idMedecin;
+        try {
+            messagingTemplate.convertAndSend(destination, payload);
+            log.info("Notification WebSocket médecin {} : type {}", idMedecin, payload.getType());
+        } catch (Exception e) {
+            log.warn("Échec envoi WebSocket médecin {}: {}", idMedecin, e.getMessage());
         }
     }
 }

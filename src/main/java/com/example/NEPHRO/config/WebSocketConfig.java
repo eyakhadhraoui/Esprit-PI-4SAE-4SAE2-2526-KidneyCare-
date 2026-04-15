@@ -7,8 +7,8 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 /**
- * Configuration WebSocket STOMP : les patients s'abonnent à /topic/patient/{idPatient}
- * pour recevoir les notifications en temps réel (ex: nouvelle image médicale).
+ * Configuration WebSocket STOMP : patients {@code /topic/patient/{idPatient}},
+ * médecins {@code /topic/medecin/{idMedecin}} (alertes labo, etc.).
  */
 @Configuration
 @EnableWebSocketMessageBroker

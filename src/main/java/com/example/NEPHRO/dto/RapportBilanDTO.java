@@ -23,4 +23,10 @@ public class RapportBilanDTO {
     private Boolean partageFamille;
     private LocalDateTime dateGeneration;
     private Long generePar;
+    /** Lien vers la prescription labo (non obligatoire). */
+    private Long prescriptionId;
+    /** Data URL PNG de la signature (non obligatoire côté validation). */
+    private String signatureDataUrl;
+    /** Si true, envoi d’un email au patient après création (non persisté). */
+    private Boolean notifyPatient;
 }

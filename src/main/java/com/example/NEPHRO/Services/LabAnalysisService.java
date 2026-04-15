@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 public class LabAnalysisService {
 
     private final ObjectMapper objectMapper;
+    private final GeminiService geminiService;
+    private final AnthropicService anthropicService;
 
     @Value("${lab.analysis.python-exec:python}")
     private String pythonExec;
@@ -37,7 +39,7 @@ public class LabAnalysisService {
     /** Script extrait depuis le classpath (JAR) — réutilisé entre appels. */
     private volatile Path extractedClasspathScript;
 
-    public Map<String, Object> analyze(Map<String, Object> payload) {
+    public Map<String, Object> analyze(Map<String, Object> payload, boolean aiConclusion) {
         Path script = resolveScriptPath();
         Path tmpDir = null;
         try {
@@ -72,7 +74,31 @@ public class LabAnalysisService {
                                 "Pas de fichier de sortie après " + cmd.get(0) + ": " + truncate(processOutput, 1500));
                         continue;
                     }
-                    return objectMapper.readValue(outputPath.toFile(), new TypeReference<>() {});
+                    Map<String, Object> analysis = objectMapper.readValue(outputPath.toFile(), new TypeReference<>() {});
+                    Object submittedValues = payload.get("values");
+                    if (submittedValues instanceof Map<?, ?> && !((Map<?, ?>) submittedValues).isEmpty()) {
+                        analysis.put("submitted_values", submittedValues);
+                    }
+                    if (aiConclusion) {
+                        if (geminiService.isConfigured()) {
+                            try {
+                                String aiText = geminiService.generateConclusionFromAnalysis(analysis);
+                                analysis.put("ai_conclusion", aiText);
+                                analysis.put("ai_provider", "gemini");
+                            } catch (Exception e) {
+                                analysis.put("ai_conclusion_error", e.getMessage());
+                            }
+                        } else if (anthropicService.isConfigured()) {
+                            try {
+                                String aiText = anthropicService.generateConclusionFromAnalysis(analysis);
+                                analysis.put("ai_conclusion", aiText);
+                                analysis.put("ai_provider", "anthropic");
+                            } catch (Exception e) {
+                                analysis.put("ai_conclusion_error", e.getMessage());
+                            }
+                        }
+                    }
+                    return analysis;
                 } catch (IOException e) {
                     lastFailure = new IllegalStateException(
                             "Impossible d'exécuter Python (" + cmd.get(0) + "): " + e.getMessage(), e);
@@ -98,6 +124,10 @@ public class LabAnalysisService {
                 }
             }
         }
+    }
+
+    public Map<String, Object> analyze(Map<String, Object> payload) {
+        return analyze(payload, false);
     }
 
     private static String truncate(String s, int max) {

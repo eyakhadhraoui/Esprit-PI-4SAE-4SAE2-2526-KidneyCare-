@@ -16,7 +16,9 @@ public class LabAnalysisController {
     private final LabAnalysisService labAnalysisService;
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> analyze(@RequestBody Map<String, Object> payload) {
-        return ResponseEntity.ok(labAnalysisService.analyze(payload));
+    public ResponseEntity<Map<String, Object>> analyze(
+            @RequestBody Map<String, Object> payload,
+            @RequestParam(name = "aiConclusion", defaultValue = "false") boolean aiConclusion) {
+        return ResponseEntity.ok(labAnalysisService.analyze(payload, aiConclusion));
     }
 }

@@ -55,4 +55,13 @@ public class RapportBilan {
 
     @Column(name = "genere_par", nullable = false)
     private Long generePar;
+
+    /** Demande de labo liée (optionnel). */
+    @Column(name = "prescription_id")
+    private Long prescriptionId;
+
+    /** Image PNG base64 (data URL) de la signature numérique du médecin. */
+    @Lob
+    @Column(name = "signature_data_url", columnDefinition = "LONGTEXT")
+    private String signatureDataUrl;
 }

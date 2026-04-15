@@ -9,5 +9,7 @@ public enum TypeNotificationMedecin {
     /** Un patient n'a pas pris son médicament (observance). */
     MEDICAMENT_NON_PRIS,
     /** Alerte critique labo (kaliémie, DFG, protéinurie, hyponatrémie). */
-    ALERTE_LABO
+    ALERTE_LABO,
+    /** Rappel : tests prescrits non réalisés après un délai. */
+    RAPPEL_TEST_NON_FAIT
 }

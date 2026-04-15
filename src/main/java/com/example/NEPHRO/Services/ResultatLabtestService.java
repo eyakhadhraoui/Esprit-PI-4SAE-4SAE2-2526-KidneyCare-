@@ -7,8 +7,10 @@ import com.example.NEPHRO.Repository.PatientRepository;
 import com.example.NEPHRO.Repository.ResultatLabtestRepository;
 import com.example.NEPHRO.dto.ResultatLabtestDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +62,22 @@ public class ResultatLabtestService {
 
     /** Crée un résultat, déclenche interprétation auto si âge/sexe fournis, puis alertes critiques. */
     public ResultatLabtestDTO create(ResultatLabtestDTO dto, Integer ageMois, SexeNorme sexe) {
+        // Empêche l’enregistrement du même test 2 fois pour une même prescription (cas patient : “refaire le même type”).
+        if (dto != null
+                && dto.getPrescriptionId() != null
+                && dto.getDossierId() != null
+                && dto.getCodeLoinc() != null
+                && !dto.getCodeLoinc().trim().isEmpty()) {
+            boolean exists = resultatLabtestRepository.existsByPrescriptionIdAndDossierIdAndCodeLoinc(
+                    dto.getPrescriptionId(), dto.getDossierId(), dto.getCodeLoinc().trim()
+            );
+            if (exists) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Ce test a déjà été enregistré pour cette demande."
+                );
+            }
+        }
         ResultatLabtest entity = toEntity(dto);
         ResultatLabtest saved = moduleLaboService.enregistrerResultatEtInterpreter(entity, ageMois, sexe);
         if (saved.getDossierId() != null) {
