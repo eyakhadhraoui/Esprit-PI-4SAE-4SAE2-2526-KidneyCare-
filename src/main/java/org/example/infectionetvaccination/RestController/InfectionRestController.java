@@ -1,6 +1,6 @@
 package org.example.infectionetvaccination.RestController;
 
-import org.example.infectionetvaccination.DTO.Exercise;
+import org.example.infectionetvaccination.DTO.GraftFunctionEntry;
 import org.example.infectionetvaccination.Entity.Infection;
 import org.example.infectionetvaccination.Service.InfectionService;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +17,6 @@ public class InfectionRestController {
         this.infectionService = infectionService;
     }
 
-    @GetMapping("/exercises")
-    public List<Exercise> getAllExercises() { return infectionService.getExercises(); }
-
-    @GetMapping("/exercises/{id}")
-    public Exercise getExerciseById(@PathVariable("id") int id) { return infectionService.getExerciseById(id); }
 
     @PostMapping
     public Infection create(@RequestBody Infection infection) { return infectionService.save(infection); }
@@ -39,4 +34,16 @@ public class InfectionRestController {
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable int id) { infectionService.delete(id); }
+
+
+    @GetMapping("/api/graft-entries/all")
+    public List<GraftFunctionEntry> getAllGraftFunctionEntry() {
+        return infectionService.getAllGraftFunctionEntry();
+    }
+    @GetMapping("/GraftFunctionEntry/{id}")
+    public GraftFunctionEntry getGraftFunctionEntryById(@PathVariable int id) {
+        return infectionService.getGraftFunctionEntryById(id);
+    }
+
+
 }

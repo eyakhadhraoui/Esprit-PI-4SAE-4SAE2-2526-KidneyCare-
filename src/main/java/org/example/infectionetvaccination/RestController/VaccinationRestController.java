@@ -1,5 +1,6 @@
 package org.example.infectionetvaccination.RestController;
 
+import org.example.infectionetvaccination.DTO.GraftSurvivalScoreDto;
 import org.example.infectionetvaccination.Entity.Vaccination;
 import org.example.infectionetvaccination.Service.VaccinationService;
 import org.springframework.web.bind.annotation.*;
@@ -47,5 +48,10 @@ public class VaccinationRestController {
     public Vaccination update(@PathVariable int id, @RequestBody Vaccination vaccination) {
         vaccination.setId(id);
         return vaccinationService.save(vaccination);
+    }
+
+    @GetMapping("/graft-survival-score/{patientId}")
+    public GraftSurvivalScoreDto getLatestSurvivalScore(@PathVariable String patientId) {
+        return vaccinationService.getLatestSurvivalScore(patientId);
     }
 }

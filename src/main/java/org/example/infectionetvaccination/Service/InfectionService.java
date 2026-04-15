@@ -1,8 +1,8 @@
 package org.example.infectionetvaccination.Service;
 
-import org.example.infectionetvaccination.DTO.Exercise;
+import org.example.infectionetvaccination.DTO.GraftFunctionEntry;
 import org.example.infectionetvaccination.Entity.Infection;
-import org.example.infectionetvaccination.ExerciseClient;
+import org.example.infectionetvaccination.Clients.GraftFunctionEntryClient;
 import org.example.infectionetvaccination.Repository.InfectionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,11 +19,21 @@ public class InfectionService {
         this.infectionRepository = infectionRepository;
     }
 
-    @Autowired
-    private ExerciseClient exerciseServiceClient;
 
-    public List<Exercise> getExercises() { return exerciseServiceClient.getAllExercises(); }
-    public Exercise getExerciseById(int id) { return exerciseServiceClient.getExerciseById(id); }
+
+    @Autowired
+    private GraftFunctionEntryClient graftFunctionEntryClient;
+
+    public List<GraftFunctionEntry> getAllGraftFunctionEntry() {
+        return graftFunctionEntryClient.getAllGraftFunctionEntry();
+    }
+    public GraftFunctionEntry getGraftFunctionEntryById(int id) {
+        return graftFunctionEntryClient.getGraftFunctionEntryById((long) id);
+    }
+
+
+
+
 
     public Infection save(Infection infection) { return infectionRepository.save(infection); }
     public List<Infection> findAll() { return infectionRepository.findAll(); }
