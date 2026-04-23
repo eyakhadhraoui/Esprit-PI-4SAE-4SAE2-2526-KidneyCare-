@@ -33,6 +33,12 @@ pipeline {
       }
     }
   }
+   stage('Deploy K8s') {
+      steps {
+        sh 'kubectl apply -f nutrition-deployment.yaml'
+      }
+    }
+  }
   post {
     success { echo 'Pipeline réussi !' }
     failure { echo 'Pipeline échoué !' }
