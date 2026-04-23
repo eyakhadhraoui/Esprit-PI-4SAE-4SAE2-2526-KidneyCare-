@@ -1,4 +1,3 @@
-package com.example.Nutrition_Service.service;
 
 import com.example.Nutrition_Service.dto.NutritionStatsDTO.*;
 import com.example.Nutrition_Service.entity.*;
