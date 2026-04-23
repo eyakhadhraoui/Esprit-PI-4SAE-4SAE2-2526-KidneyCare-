@@ -10,17 +10,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class AlimentService {
 
     private final AlimentRepository alimentRepository;
 
-    // ═══════════════════ CRUD ═══════════════════
-
+    @Transactional
     public AlimentDTO createAliment(AlimentDTO dto) {
         if (alimentRepository.existsByNomIgnoreCase(dto.getNom().trim())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Un aliment avec ce nom existe déjà");
@@ -30,6 +27,7 @@ public class AlimentService {
         return toDTO(saved);
     }
 
+    @Transactional
     public AlimentDTO updateAliment(Long id, AlimentDTO dto) {
         Aliment aliment = alimentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Aliment non trouvé"));
@@ -47,7 +45,7 @@ public class AlimentService {
     public List<AlimentDTO> getAllAliments() {
         return alimentRepository.findAll().stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -61,31 +59,30 @@ public class AlimentService {
     public List<AlimentDTO> searchByNom(String nom) {
         return alimentRepository.findByNomContainingIgnoreCase(nom).stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<AlimentDTO> getByCategorie(String categorie) {
         return alimentRepository.findByCategorie(categorie).stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<AlimentDTO> getAlimentsInteractionTacrolimus() {
         return alimentRepository.findByInteractionTacrolimusTrue().stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
+    @Transactional
     public void deleteAliment(Long id) {
         if (!alimentRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Aliment non trouvé");
         }
         alimentRepository.deleteById(id);
     }
-
-    // ═══════════════════ CONVERSIONS ═══════════════════
 
     private AlimentDTO toDTO(Aliment entity) {
         AlimentDTO dto = new AlimentDTO();
