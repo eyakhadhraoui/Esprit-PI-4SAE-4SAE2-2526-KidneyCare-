@@ -2,7 +2,7 @@ package com.example.Nutrition_Service.controller;
 
 import com.example.Nutrition_Service.dto.MenuJournalierDTO;
 import com.example.Nutrition_Service.service.MenuGeneratorService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,12 +12,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/nutrition")
 @CrossOrigin(origins = "http://localhost:4200")
+@RequiredArgsConstructor
 public class MenuController {
 
-    @Autowired
-    MenuGeneratorService menuService;
+    private final MenuGeneratorService menuService;
 
-    // 3 menus aléatoires pour les 7 jours
     @GetMapping("/menus-semaine/{patientId}")
     public ResponseEntity<Map<String, List<MenuJournalierDTO>>> getMenusSemaine(
             @PathVariable Long patientId) {
