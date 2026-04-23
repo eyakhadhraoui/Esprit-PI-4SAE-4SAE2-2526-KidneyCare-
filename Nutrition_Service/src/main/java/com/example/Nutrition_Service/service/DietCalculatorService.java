@@ -3,65 +3,60 @@ package com.example.Nutrition_Service.service;
 import com.example.Nutrition_Service.dto.DietRecommendationDTO;
 import com.example.Nutrition_Service.entity.*;
 import com.example.Nutrition_Service.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
-import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class DietCalculatorService {
 
-    @Autowired
-    DossierMedicalRepository dossierRepo;
-    @Autowired
-    ResultatLaboratoireRepository labRepo;
-    @Autowired
-    PrescriptionRepository prescriptionRepo;
-    @Autowired
-    PatientRepository patientRepo;
-@Autowired
-PatientWeightRepository weightRepo;
+    private final DossierMedicalRepository dossierRepo;
+    private final ResultatLaboratoireRepository labRepo;
+    private final PrescriptionRepository prescriptionRepo;
+    private final PatientRepository patientRepo;
+    private final PatientWeightRepository weightRepo;
 
-    public Optional<DietRecommendationDTO> calculate(Long patientId) {
+    @Transactional(readOnly = true)
+    public DietRecommendationDTO calculate(Long patientId) {
 
-        // 1. Dossier médical
         DossierMedical dossier = dossierRepo.findByPatientId(patientId)
                 .orElseThrow(() -> new RuntimeException("Dossier non trouvé"));
 
-        // 2. Patient → date naissance → âge
-        Patient patient = patientRepo.findById(patientId).orElseThrow();
+        Patient patient = patientRepo.findById(patientId)
+                .orElseThrow(() -> new RuntimeException("Patient non trouvé"));
+
         int ageAns = Period.between(patient.getDateNaissance(), LocalDate.now()).getYears();
 
-        // 3. Poids
         PatientWeight pw = weightRepo.findDernierPoidsByPatientId(patientId).orElse(null);
         double poids  = pw != null ? pw.getWeightKg() : 0;
         double taille = pw != null && pw.getHeightCm() != null ? pw.getHeightCm() : 0;
-        // 4. Calories selon âge
-        int kcalParKg = ageAns < 3 ? 80 : ageAns < 6 ? 70 : ageAns < 12 ? 60 : 50;
-        int calories = (int)(poids * kcalParKg);
 
-        // 5. Limites de base
+        int kcalParKg = ageAns < 3 ? 80 : ageAns < 6 ? 70 : ageAns < 12 ? 60 : 50;
+        int calories  = (int)(poids * kcalParKg);
+
         int    kMax    = (int)(poids * 40);
         int    naMax   = (int)(poids * 30);
         int    pMax    = (int)(poids * 20);
         double protMax = poids * 1.5;
         int    sucreMax = (int)(calories * 0.10 / 4);
 
-        // 6. Médicaments actifs → catégorie
         List<Medication> meds = prescriptionRepo.findMedicamentsActifs(patientId);
+
         boolean corticoide = meds.stream().anyMatch(m ->
                 m.getCategory() != null &&
-                        m.getCategory().toLowerCase().contains("cortico"));
+                m.getCategory().toLowerCase().contains("cortico"));
+
         boolean immunosuppresseur = meds.stream().anyMatch(m ->
                 Boolean.TRUE.equals(m.getIsImmunosuppressor()));
 
         if (corticoide)        sucreMax = (int)(calories * 0.05 / 4);
         if (immunosuppresseur) naMax = Math.min(naMax, 1500);
 
-        // 7. Dernier bilan labo
         List<ResultatLaboratoire> bilans =
                 labRepo.findDernierBilanByDossierId(dossier.getId());
 
@@ -92,13 +87,12 @@ PatientWeightRepository weightRepo;
                 if (gly != null) rawGly  = gly;
                 if (cr  != null) rawCreat = cr;
 
-                // Ajustements selon labo
                 if (k  != null && k  > 5.0) kMax = Math.min(kMax, 1500);
                 if (k  != null && k  < 3.5) kMax = kMax + 500;
                 if (na != null && na > 145)  naMax = Math.min(naMax, 1200);
                 if (p  != null && p  > 4.5)  pMax = Math.min(pMax, 600);
                 if (dfg != null) {
-                    if (dfg < 15) protMax = poids * 0.60;
+                    if (dfg < 15)      protMax = poids * 0.60;
                     else if (dfg < 30) protMax = poids * 0.70;
                     else if (dfg < 60) protMax = poids * 0.75;
                 }
@@ -106,7 +100,6 @@ PatientWeightRepository weightRepo;
             }
         }
 
-        // 8. Construire DTO
         DietRecommendationDTO dto = new DietRecommendationDTO();
         dto.setPatientId(patientId);
         dto.setDateBilan(dateBilan);
@@ -118,7 +111,6 @@ PatientWeightRepository weightRepo;
         dto.setSucreMax(sucreMax);
         dto.setMedicamentsActifs(meds.stream().map(Medication::getName).toList());
         dto.setNotes("Calculé automatiquement — Poids: " + poids + "kg, Âge: " + ageAns + " ans");
-        // Valeurs brutes du bilan
         dto.setPoids(poids > 0 ? poids : null);
         dto.setTaille(taille > 0 ? taille : null);
         dto.setPotassium(rawK);
@@ -128,10 +120,10 @@ PatientWeightRepository weightRepo;
         dto.setCreatinine(rawCreat);
         dto.setAlbumine(rawAlb);
         dto.setGlychemie(rawGly);
-        return Optional.of(dto);
+
+        return dto;
     }
 
-    // Extrait la valeur numérique depuis "Kaliemie=5.4 mmol/L"
     private Double extraire(String texte, String cle) {
         try {
             if (!texte.contains(cle + "=")) return null;
