@@ -13,28 +13,24 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class BesoinNutritionnelService {
 
     private final BesoinNutritionnelRepository besoinRepository;
 
-    // ═══════════════════ DONNÉES STATIQUES ENRICHIES ═══════════════════
     @PostConstruct
+    @Transactional
     public void initStaticData() {
         if (besoinRepository.count() == 0) {
             createPatientData();
         }
     }
 
-    private void createPatientData() {
+    @Transactional
+    public void createPatientData() {
 
-        // ═══════════════════════════════════════════════════════════════
-        // PATIENT 1 : Emma Johnson (2 ans, sous Tacrolimus)
-        // ═══════════════════════════════════════════════════════════════
         BesoinNutritionnel patient1 = new BesoinNutritionnel();
         patient1.setPatientId(1L);
         patient1.setPoidsKg(22.0);
@@ -51,40 +47,13 @@ public class BesoinNutritionnelService {
         patient1.setDateFin(null);
         patient1.setRaisonCalcul("Calculé selon poids (22kg) + âge (2 ans) + Tacrolimus actif");
         patient1.setNotes(
-                "📊 DONNÉES ANTHROPOMÉTRIQUES:\n" +
-                        "- Poids: 22 kg\n" +
-                        "- Taille: 85 cm\n" +
-                        "- Périmètre crânien: 48 cm\n" +
-                        "- IMC: 30.4 (surpoids)\n\n" +
-
-                        "💊 TRAITEMENT IMMUNOSUPPRESSEUR:\n" +
-                        "- Tacrolimus: 2mg matin + 2mg soir (0.18mg/kg/jour)\n" +
-                        "- Début traitement: 15/08/2024\n\n" +
-
-                        "🔬 DERNIERS BILANS (18/02/2026):\n" +
-                        "- Potassium: 5.2 mmol/L [Normal: 3.5-5.0] ⚠️ ÉLEVÉ\n" +
-                        "- Sodium: 138 mmol/L [Normal: 135-145] ✓\n" +
-                        "- Phosphore: 1.45 mmol/L [Normal: 1.0-1.8] ✓\n" +
-                        "- Créatinine: 52 µmol/L [Normal: 27-62] ✓\n" +
-                        "- Urée: 4.2 mmol/L [Normal: 2.5-6.4] ✓\n" +
-                        "- Tacrolimus sanguin: 8.5 ng/mL [Cible: 5-15] ✓\n" +
-                        "- Hémoglobine: 115 g/L [Normal: 110-140] ✓\n" +
-                        "- Leucocytes: 6.2 x10⁹/L [Normal: 5-15] ✓\n\n" +
-
-                        "⚠️ RESTRICTIONS ACTIVES:\n" +
-                        "- HYPERKALIÉMIE: Éviter banane, fruits secs, épinards\n" +
-                        "- TACROLIMUS: Pamplemousse INTERDIT\n\n" +
-
-                        "📅 SURVEILLANCE:\n" +
-                        "- Bilan sanguin: Chaque semaine\n" +
-                        "- Pesée: 2x/semaine\n" +
-                        "- Contrôle tension: Quotidien"
+                "Poids: 22 kg, Taille: 85 cm, IMC: 30.4 (surpoids)\n" +
+                "Tacrolimus: 2mg matin + 2mg soir\n" +
+                "Potassium: 5.2 mmol/L ÉLEVÉ\n" +
+                "Restrictions: Éviter banane, fruits secs, épinards, pamplemousse INTERDIT"
         );
         besoinRepository.save(patient1);
 
-        // ═══════════════════════════════════════════════════════════════
-        // PATIENT 2 : Lucas Thompson (9 mois, pas de traitement)
-        // ═══════════════════════════════════════════════════════════════
         BesoinNutritionnel patient2 = new BesoinNutritionnel();
         patient2.setPatientId(2L);
         patient2.setPoidsKg(9.0);
@@ -101,41 +70,12 @@ public class BesoinNutritionnelService {
         patient2.setDateFin(null);
         patient2.setRaisonCalcul("Calculé selon âge (9 mois) et poids (9kg) - Pas de traitement immunosuppresseur");
         patient2.setNotes(
-                "📊 DONNÉES ANTHROPOMÉTRIQUES:\n" +
-                        "- Poids: 9 kg\n" +
-                        "- Taille: 72 cm\n" +
-                        "- Périmètre crânien: 45 cm\n" +
-                        "- IMC: 17.4 (normal)\n\n" +
-
-                        "💊 TRAITEMENT:\n" +
-                        "- Aucun immunosuppresseur\n" +
-                        "- Supplémentation vitamine D: 400 UI/jour\n" +
-                        "- Fer: 2mg/kg/jour\n\n" +
-
-                        "🔬 DERNIERS BILANS (18/02/2026):\n" +
-                        "- Potassium: 4.5 mmol/L [Normal: 3.5-5.0] ✓\n" +
-                        "- Sodium: 140 mmol/L [Normal: 135-145] ✓\n" +
-                        "- Phosphore: 1.6 mmol/L [Normal: 1.0-1.8] ✓\n" +
-                        "- Créatinine: 35 µmol/L [Normal: 18-35] ✓ Limite haute\n" +
-                        "- Urée: 3.8 mmol/L [Normal: 1.8-6.4] ✓\n" +
-                        "- Hémoglobine: 105 g/L [Normal: 95-130] ✓\n" +
-                        "- Fer sérique: 8 µmol/L [Normal: 7-18] ✓\n\n" +
-
-                        "⚠️ RESTRICTIONS ACTIVES:\n" +
-                        "- ÂGE: Raisins secs interdits (< 12 mois)\n" +
-                        "- ÂGE: Fruits à coques interdits (< 12 mois)\n" +
-                        "- Surveillance créatinine (limite haute)\n\n" +
-
-                        "📅 SURVEILLANCE:\n" +
-                        "- Bilan sanguin: Chaque mois\n" +
-                        "- Pesée: 1x/semaine\n" +
-                        "- Croissance: Courbe OMS normale"
+                "Poids: 9 kg, Taille: 72 cm, IMC: 17.4 (normal)\n" +
+                "Aucun immunosuppresseur\n" +
+                "Restrictions: Raisins secs et fruits à coques interdits (< 12 mois)"
         );
         besoinRepository.save(patient2);
 
-        // ═══════════════════════════════════════════════════════════════
-        // PATIENT 3 : Mohammed Karim (12 ans, Tacrolimus + Prednisone)
-        // ═══════════════════════════════════════════════════════════════
         BesoinNutritionnel patient3 = new BesoinNutritionnel();
         patient3.setPatientId(3L);
         patient3.setPoidsKg(38.0);
@@ -152,61 +92,27 @@ public class BesoinNutritionnelService {
         patient3.setDateFin(null);
         patient3.setRaisonCalcul("Calculé selon poids (38kg) + âge (12 ans) + Tacrolimus + Prednisone actifs");
         patient3.setNotes(
-                "📊 DONNÉES ANTHROPOMÉTRIQUES:\n" +
-                        "- Poids: 38 kg\n" +
-                        "- Taille: 148 cm\n" +
-                        "- Périmètre crânien: 54 cm\n" +
-                        "- IMC: 17.3 (normal)\n\n" +
-
-                        "💊 TRAITEMENT IMMUNOSUPPRESSEUR TRIPLE:\n" +
-                        "- Tacrolimus: 3mg matin + 3mg soir (0.16mg/kg/jour)\n" +
-                        "- Prednisone: 5mg/jour (0.13mg/kg/jour)\n" +
-                        "- Mycophenolate: 500mg 2x/jour\n" +
-                        "- Début traitement: 14/02/2024\n\n" +
-
-                        "🔬 DERNIERS BILANS (18/02/2026):\n" +
-                        "- Potassium: 4.8 mmol/L [Normal: 3.5-5.0] ✓\n" +
-                        "- Sodium: 142 mmol/L [Normal: 135-145] ✓\n" +
-                        "- Phosphore: 1.3 mmol/L [Normal: 1.0-1.8] ✓\n" +
-                        "- Créatinine: 58 µmol/L [Normal: 44-88] ✓\n" +
-                        "- Urée: 5.1 mmol/L [Normal: 2.5-6.4] ✓\n" +
-                        "- Tacrolimus sanguin: 12.3 ng/mL [Cible: 5-15] ✓\n" +
-                        "- Glycémie: 6.8 mmol/L [Normal: 3.9-5.6] ⚠️ ÉLEVÉ (Prednisone)\n" +
-                        "- HbA1c: 5.9% [Normal: <5.7%] ⚠️ Prédiabète\n" +
-                        "- Hémoglobine: 125 g/L [Normal: 115-155] ✓\n" +
-                        "- Leucocytes: 8.5 x10⁹/L [Normal: 4.5-13.5] ✓\n" +
-                        "- GFR: 85 mL/min/1.73m² [Normal: >90] ⚠️ Légère baisse\n\n" +
-
-                        "⚠️ RESTRICTIONS ACTIVES:\n" +
-                        "- DIABÈTE CORTICOÏDE: Limiter sucres rapides\n" +
-                        "- TACROLIMUS: Pamplemousse INTERDIT\n" +
-                        "- PREDNISONE: Surveillance glycémie renforcée\n\n" +
-
-                        "📅 SURVEILLANCE:\n" +
-                        "- Bilan sanguin: 2x/semaine\n" +
-                        "- Glycémie capillaire: Quotidienne\n" +
-                        "- Pesée: 1x/semaine\n" +
-                        "- Contrôle tension: Quotidien\n" +
-                        "- Dosage Tacrolimus: Hebdomadaire"
+                "Poids: 38 kg, Taille: 148 cm, IMC: 17.3 (normal)\n" +
+                "Tacrolimus: 3mg matin + 3mg soir, Prednisone: 5mg/jour\n" +
+                "Glycémie: 6.8 mmol/L ÉLEVÉ, HbA1c: 5.9% Prédiabète\n" +
+                "Restrictions: Limiter sucres rapides, pamplemousse INTERDIT"
         );
         besoinRepository.save(patient3);
     }
 
-    // ═══════════════════ CRUD ═══════════════════
-
+    @Transactional
     public BesoinNutritionnelDTO createBesoin(BesoinNutritionnelDTO dto) {
-        // Clôturer l'ancien besoin actif s'il existe
         Optional<BesoinNutritionnel> ancien = besoinRepository.findActiveByPatientId(dto.getPatientId());
         ancien.ifPresent(b -> {
             b.setDateFin(LocalDate.now());
             besoinRepository.save(b);
         });
-
         BesoinNutritionnel besoin = toEntity(dto);
         BesoinNutritionnel saved = besoinRepository.save(besoin);
         return toDTO(saved);
     }
 
+    @Transactional
     public BesoinNutritionnelDTO updateBesoin(Long id, BesoinNutritionnelDTO dto) {
         BesoinNutritionnel besoin = besoinRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Besoin non trouvé"));
@@ -219,7 +125,7 @@ public class BesoinNutritionnelService {
     public List<BesoinNutritionnelDTO> getAllBesoins() {
         return besoinRepository.findAll().stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -240,17 +146,16 @@ public class BesoinNutritionnelService {
     public List<BesoinNutritionnelDTO> getHistoryForPatient(Long patientId) {
         return besoinRepository.findByPatientIdOrderByDateDebutDesc(patientId).stream()
                 .map(this::toDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
+    @Transactional
     public void deleteBesoin(Long id) {
         if (!besoinRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Besoin non trouvé");
         }
         besoinRepository.deleteById(id);
     }
-
-    // ═══════════════════ CONVERSIONS ═══════════════════
 
     private BesoinNutritionnelDTO toDTO(BesoinNutritionnel entity) {
         BesoinNutritionnelDTO dto = new BesoinNutritionnelDTO();
