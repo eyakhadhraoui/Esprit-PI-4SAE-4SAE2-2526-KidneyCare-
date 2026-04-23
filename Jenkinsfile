@@ -11,17 +11,17 @@ pipeline {
         sh 'cd Nutrition_Service && mvn clean package -DskipTests'
       }
     }
-    stage('SonarQube') {
-      steps {
-        sh '''
-          cd Nutrition_Service && mvn sonar:sonar \
-            -Dsonar.host.url=http://localhost:9000 \
-            -Dsonar.login=admin \
-            -Dsonar.password=admin \
-            -Dsonar.projectKey=kidney-care
-        '''
-      }
-    }
+  stage('SonarQube') {
+  steps {
+    sh '''
+      cd Nutrition_Service && mvn sonar:sonar \
+        -Dsonar.host.url=http://172.17.0.1:9000 \
+        -Dsonar.login=admin \
+        -Dsonar.password=admin \
+        -Dsonar.projectKey=kidney-care
+    '''
+  }
+}
     stage('Docker Build') {
       steps {
         sh 'docker-compose build'
