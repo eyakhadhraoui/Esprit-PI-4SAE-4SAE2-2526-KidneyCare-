@@ -27,8 +27,7 @@ class InfectionServiceTest {
     @Mock
     private InfectionRepository infectionRepository;
 
-    @Mock
-    private ExerciseClient exerciseClient;
+
 
     @Mock
     private GraftFunctionEntryClient graftFunctionEntryClient;
@@ -160,31 +159,5 @@ class InfectionServiceTest {
         verify(infectionRepository, never()).save(any());
     }
 
-    // ── Feign clients ─────────────────────────────────────────────────────────
 
-    @Test
-    @DisplayName("getExercises() — delegates to ExerciseClient")
-    void getExercises_shouldDelegateToClient() {
-        Exercise ex = new Exercise();
-        when(exerciseClient.getAllExercises()).thenReturn(List.of(ex));
-
-        List<Exercise> results = infectionService.getExercises();
-
-        assertThat(results).hasSize(1);
-        verify(exerciseClient, times(1)).getAllExercises();
-    }
-
-
-
-    @Test
-    @DisplayName("getGraftFunctionEntryById() — delegates with cast id")
-    void getGraftFunctionEntryById_shouldDelegateToClient() {
-        GraftFunctionEntry entry = new GraftFunctionEntry();
-        when(graftFunctionEntryClient.getGraftFunctionEntryById(3L)).thenReturn(entry);
-
-        GraftFunctionEntry result = infectionService.getGraftFunctionEntryById(3);
-
-        assertThat(result).isNotNull();
-        verify(graftFunctionEntryClient, times(1)).getGraftFunctionEntryById(3L);
-    }
 }

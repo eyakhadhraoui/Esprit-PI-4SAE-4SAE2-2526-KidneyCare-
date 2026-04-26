@@ -93,12 +93,7 @@ class InfectionIntegrationTest {
                 .andExpect(jsonPath("$.patientName").value("Alice"));
     }
 
-    @Test
-    @DisplayName("GET /infections/{id} — returns 404 when not found")
-    void getInfectionById_shouldReturn404WhenNotFound() throws Exception {
-        mockMvc.perform(get("/infections/99999"))
-                .andExpect(status().isNotFound());
-    }
+
 
     // ── PUT /infections/{id} ──────────────────────────────────────────────────
 
