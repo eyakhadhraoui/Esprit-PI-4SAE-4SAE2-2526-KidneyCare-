@@ -5,10 +5,13 @@ import com.example.NEPHRO.Enum.StatutInterpretation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
 public interface ResultatLabtestRepository extends JpaRepository<ResultatLabtest, Long> {
+
+    List<ResultatLabtest> findByDossierIdIn(Collection<Long> dossierIds);
 
     List<ResultatLabtest> findByPrescriptionIdOrderByDateRenduDesc(Long prescriptionId);
     List<ResultatLabtest> findByDossierIdOrderByDateRenduDesc(Long dossierId);

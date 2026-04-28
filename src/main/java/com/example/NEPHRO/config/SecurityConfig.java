@@ -1,5 +1,6 @@
 package com.example.NEPHRO.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -38,7 +39,7 @@ public class SecurityConfig {
     /** Chaîne 1 : /api/auth/** sans JWT (login, register publics). */
     @Bean
     @Order(1)
-    public SecurityFilterChain authFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+    public SecurityFilterChain authFilterChain(HttpSecurity http, @Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
             .securityMatcher(AntPathRequestMatcher.antMatcher("/api/auth/**"))
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -49,7 +50,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, @Qualifier("corsConfigurationSource") CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(csrf -> csrf.disable())
@@ -58,7 +59,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/uploads/**", "/error", "/actuator/health", "/ws/**").permitAll()
-                .requestMatchers("/api/**", "/suivis/**").authenticated()
+                // Lecture et écriture : médecin ET patient
+                .requestMatchers(HttpMethod.GET,    "/api/**", "/suivis/**").hasAnyRole("MEDECIN", "PATIENT")
+                .requestMatchers(HttpMethod.POST,   "/api/**", "/suivis/**").hasAnyRole("MEDECIN", "PATIENT")
+                .requestMatchers(HttpMethod.PUT,    "/api/**", "/suivis/**").hasAnyRole("MEDECIN", "PATIENT")
+                .requestMatchers(HttpMethod.DELETE, "/api/**", "/suivis/**").hasAnyRole("MEDECIN", "PATIENT")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

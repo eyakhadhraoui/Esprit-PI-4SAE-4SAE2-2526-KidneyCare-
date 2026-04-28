@@ -100,6 +100,37 @@ public class PrescriptionBilanService {
     }
 
     public PrescriptionBilanDTO create(PrescriptionBilanDTO dto) {
+        if (dto == null) {
+            throw new IllegalArgumentException("Demande invalide.");
+        }
+        if (dto.getDossierId() == null) {
+            throw new IllegalArgumentException("Le dossier est obligatoire.");
+        }
+        if (dto.getMedecinId() == null) {
+            throw new IllegalArgumentException("Le médecin est obligatoire.");
+        }
+        if (dto.getExamens() == null || dto.getExamens().isEmpty()) {
+            throw new IllegalArgumentException("Sélectionnez au moins un test (code LOINC).");
+        }
+        // Nettoyage simple (trim + upper) et suppression doublons
+        java.util.List<String> cleaned = dto.getExamens().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(s -> s.trim().toUpperCase())
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .toList();
+        if (cleaned.isEmpty()) {
+            throw new IllegalArgumentException("Sélectionnez au moins un test (code LOINC).");
+        }
+        // Format LOINC basique : 1234-5
+        java.util.regex.Pattern loinc = java.util.regex.Pattern.compile("^[0-9]{1,7}-[0-9]{1}$");
+        for (String code : cleaned) {
+            if (!loinc.matcher(code).matches()) {
+                throw new IllegalArgumentException("Code LOINC invalide : " + code);
+            }
+        }
+        dto.setExamens(new java.util.ArrayList<>(cleaned));
+
         dto.setStatut(StatutPrescription.EN_ATTENTE);
         PrescriptionBilan saved = prescriptionBilanRepository.save(toEntity(dto));
         if (saved.getDossierId() != null) {

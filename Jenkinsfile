@@ -1,49 +1,90 @@
-
 pipeline {
     agent any
+
     tools {
         maven 'M2_HOME'
     }
+
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKERHUB_USER        = "${DOCKERHUB_CREDENTIALS_USR}"
+        IMAGE_TAG             = "${env.BUILD_NUMBER}"
+        IMAGE_NAME            = 'kidneycare-nephro'
+        GIT_REPO_URL          = 'https://github.com/eyakhadhraoui/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-.git'
+    }
+
     stages {
 
         stage('Clean Workspace') {
-            steps {
-                cleanWs()
-            }
+            steps { cleanWs() }
         }
 
-        stage('Clone Repository') {
+        stage('Clone — Dossiersmedicale') {
             steps {
                 git branch: 'Dossiersmedicale',
-                    url: 'https://github.com/eyakhadhraoui/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-.git'
+                    url: "${GIT_REPO_URL}"
             }
         }
 
         stage('Build') {
             steps {
-                sh 'mvn clean install -DskipTests'
+                dir('NEPHRO') {
+                    sh 'mvn clean package -DskipTests -B'
+                }
             }
         }
 
         stage('Unit Tests') {
             steps {
-                sh 'mvn test'
+                dir('NEPHRO') { sh 'mvn test -B' }
+            }
+            post {
+                always {
+                    junit testResults: 'NEPHRO/target/surefire-reports/*.xml',
+                          allowEmptyResults: true
+                }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh 'mvn sonar:sonar'
+                    dir('NEPHRO') {
+                        sh 'mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-nephro -Dsonar.projectName="KidneyCare - NEPHRO"'
+                    }
                 }
             }
         }
 
-        stage('Package JAR') {
+        stage('Quality Gate') {
             steps {
-                sh 'mvn package -DskipTests'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
             }
         }
 
+        stage('Build Docker Image') {
+            steps {
+                dir('NEPHRO') {
+                    sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                    sh "docker tag ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKERHUB_USER}/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
+                sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:latest"
+            }
+        }
+    }
+
+    post {
+        success { echo "NEPHRO — Build #${env.BUILD_NUMBER} reussi." }
+        failure { echo "NEPHRO — Build #${env.BUILD_NUMBER} echoue." }
+        always  { sh 'docker logout || true'; cleanWs() }
     }
 }

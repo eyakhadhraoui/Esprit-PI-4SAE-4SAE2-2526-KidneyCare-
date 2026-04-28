@@ -26,6 +26,7 @@ public class RapportBilanService {
     private final DossierMedicalRepository dossierMedicalRepository;
     private final PatientRepository patientRepository;
     private final NotificationService notificationService;
+    private final NotificationWebSocketService notificationWebSocketService;
 
     private RapportBilanDTO toDTO(RapportBilan e) {
         RapportBilanDTO dto = new RapportBilanDTO();
@@ -61,6 +62,23 @@ public class RapportBilanService {
     }
 
     public RapportBilanDTO create(RapportBilanDTO dto) {
+        if (dto == null) {
+            throw new IllegalArgumentException("Rapport invalide.");
+        }
+        if (dto.getDossierId() == null) {
+            throw new IllegalArgumentException("Le dossier est obligatoire.");
+        }
+        String comment = dto.getCommentaireMedecin() != null ? dto.getCommentaireMedecin().trim() : "";
+        if (comment.isBlank()) {
+            throw new IllegalArgumentException("Le commentaire du rapport est obligatoire.");
+        }
+        dto.setCommentaireMedecin(comment);
+        if (Boolean.TRUE.equals(dto.getNotifyPatient())) {
+            String sig = dto.getSignatureDataUrl() != null ? dto.getSignatureDataUrl().trim() : "";
+            if (sig.isBlank()) {
+                throw new IllegalArgumentException("La signature est obligatoire pour notifier le patient.");
+            }
+        }
         boolean notifyPatient = Boolean.TRUE.equals(dto.getNotifyPatient());
         if (dto.getDateGeneration() == null) dto.setDateGeneration(LocalDateTime.now());
         RapportBilan saved = rapportBilanRepository.save(toEntity(dto));
@@ -92,6 +110,12 @@ public class RapportBilanService {
                     rapport.getPeriodeFin(),
                     rapport.getCommentaireMedecin(),
                     rapport.getSignatureDataUrl()
+            );
+            // Toast temps réel côté patient : "Rapport envoyé — check your email"
+            notificationWebSocketService.notifyPatientRapportBilanEnvoye(
+                    patient.getIdPatient(),
+                    rapport.getDossierId(),
+                    rapport.getId()
             );
         } catch (Exception e) {
             log.error("Échec notification rapport bilan {} : {}", rapport.getId(), e.getMessage());

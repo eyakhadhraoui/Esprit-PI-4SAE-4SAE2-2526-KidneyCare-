@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 /**
- * Événement calendrier pour le patient : suivi ou image médicale ajouté(e) par le médecin.
+ * Événement calendrier pour le patient : suivi, image, demande d'examen (médecin) ou examen réalisé.
  */
 @Data
 @NoArgsConstructor
@@ -17,7 +17,13 @@ public class CalendrierEventDTO {
 
     public enum TypeEvent {
         SUIVI,
-        IMAGE_MEDICALE
+        IMAGE_MEDICALE,
+        /** Prescription de bilan / demande de tests par le médecin. */
+        TEST_DEMANDE,
+        /** Résultat d'examen enregistré (patient ou labo). */
+        TEST_REALISE,
+        /** Rapport de bilan rédigé par le médecin (email / PDF). */
+        RAPPORT_BILAN
     }
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")

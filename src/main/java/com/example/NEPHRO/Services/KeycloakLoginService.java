@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 @Service
@@ -80,6 +82,16 @@ public class KeycloakLoginService {
                             ? errorBody
                             : "Erreur Keycloak: " + e.getMessage()
             );
+
+        } catch (HttpServerErrorException e) {
+            String errorBody = e.getResponseBodyAsString();
+            log.error("Keycloak 5xx {}: {}", e.getStatusCode(), errorBody);
+            throw new RuntimeException("Keycloak indisponible (" + e.getStatusCode() + ").", e);
+
+        } catch (ResourceAccessException e) {
+            // Typiquement : Connection refused / timeout
+            log.error("Keycloak injoignable: {}", e.getMessage());
+            throw new RuntimeException("Keycloak injoignable (vérifiez qu'il tourne sur " + keycloakUrl + ").", e);
 
         } catch (Exception e) {
             log.error("Connexion Keycloak impossible", e);

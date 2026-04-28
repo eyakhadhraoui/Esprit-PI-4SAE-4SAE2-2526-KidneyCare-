@@ -23,6 +23,8 @@ public class NotificationPayload {
     public static final String TYPE_LAB_PREVENTIF = "LAB_PREVENTIF";
     /** Prescription avec examens non réalisés après délai. */
     public static final String TYPE_LAB_RAPPEL_TEST = "LAB_RAPPEL_TEST";
+    /** Rapport de bilan rédigé et envoyé par email (toast patient : "Check your email"). */
+    public static final String TYPE_RAPPORT_BILAN = "RAPPORT_BILAN";
 
     private String type;
     private String titre;

@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Calendrier du patient : événements (suivis et images médicales) ajoutés par le médecin.
+ * Calendrier du patient : suivis, images, demandes d'examens, examens réalisés et rapports médicaux.
  */
 @RestController
 @RequestMapping("/api/calendrier")

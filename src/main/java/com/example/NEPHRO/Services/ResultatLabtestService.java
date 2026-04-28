@@ -62,6 +62,15 @@ public class ResultatLabtestService {
 
     /** Crée un résultat, déclenche interprétation auto si âge/sexe fournis, puis alertes critiques. */
     public ResultatLabtestDTO create(ResultatLabtestDTO dto, Integer ageMois, SexeNorme sexe) {
+        if (dto == null) throw new IllegalArgumentException("Résultat invalide.");
+        if (dto.getDossierId() == null) throw new IllegalArgumentException("Le dossier est obligatoire.");
+        if (dto.getCodeLoinc() == null || dto.getCodeLoinc().trim().isBlank())
+            throw new IllegalArgumentException("Le code LOINC est obligatoire.");
+        if (dto.getLibelleExamen() == null || dto.getLibelleExamen().trim().isBlank())
+            throw new IllegalArgumentException("Le libellé de l'examen est obligatoire.");
+        if (dto.getValeur() == null)
+            throw new IllegalArgumentException("La valeur du résultat est obligatoire.");
+
         // Empêche l’enregistrement du même test 2 fois pour une même prescription (cas patient : “refaire le même type”).
         if (dto != null
                 && dto.getPrescriptionId() != null

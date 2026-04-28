@@ -73,6 +73,20 @@ public class NotificationWebSocketService {
         sendToPatient(idPatient, payload);
     }
 
+    /** Rapport de bilan rédigé (le patient reçoit un toast : “Check your email”). */
+    public void notifyPatientRapportBilanEnvoye(Long idPatient, Long idDossierMedical, Long rapportId) {
+        if (idPatient == null) return;
+        NotificationPayload payload = new NotificationPayload(
+                NotificationPayload.TYPE_RAPPORT_BILAN,
+                "Rapport envoyé — check your email",
+                java.time.LocalDate.now(),
+                idDossierMedical,
+                rapportId,
+                null
+        );
+        sendToPatient(idPatient, payload);
+    }
+
     private void sendToPatient(Long idPatient, NotificationPayload payload) {
         String destination = TOPIC_PATIENT_PREFIX + idPatient;
         try {

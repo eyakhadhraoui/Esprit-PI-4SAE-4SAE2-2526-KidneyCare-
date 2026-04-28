@@ -51,6 +51,11 @@ public class AuthController {
             String msg = e.getMessage() != null ? e.getMessage() : "Erreur de connexion";
             log.warn("Login échoué pour {}: {}", request.getUsername(), msg);
             return ResponseEntity.status(status).body(Map.of("message", msg));
+        } catch (Exception e) {
+            // Dernier filet de sécurité : éviter un 500 “opaque”
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            log.error("Login erreur inattendue pour {}: {}", request.getUsername(), msg, e);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", "Erreur backend login: " + msg));
         }
     }
 
