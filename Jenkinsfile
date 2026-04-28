@@ -7,40 +7,39 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
-        DOCKERHUB_USER        = "${DOCKERHUB_CREDENTIALS_USR}"
-        IMAGE_TAG             = "${env.BUILD_NUMBER}"
-        IMAGE_NAME            = 'kidneycare-nephro'
-        GIT_REPO_URL          = 'https://github.com/eyakhadhraoui/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-.git'
+        IMAGE_NAME = 'kidneycare-nephro'
+        IMAGE_TAG  = "${env.BUILD_NUMBER}"
     }
 
     stages {
 
         stage('Clean Workspace') {
-            steps { cleanWs() }
+            steps {
+                cleanWs()
+            }
         }
 
         stage('Clone — Dossiersmedicale') {
             steps {
                 git branch: 'Dossiersmedicale',
-                    url: "${GIT_REPO_URL}"
+                    url: 'https://github.com/eyakhadhraoui/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-.git'
             }
         }
 
         stage('Build') {
             steps {
-                dir('NEPHRO') {
-                    sh 'mvn clean package -DskipTests -B'
-                }
+                // pom.xml est a la RACINE de la branche (pas dans un sous-dossier)
+                sh 'mvn clean package -DskipTests -B'
             }
         }
 
         stage('Unit Tests') {
             steps {
-                dir('NEPHRO') { sh 'mvn test -B' }
+                sh 'mvn test -B'
             }
             post {
                 always {
-                    junit testResults: 'NEPHRO/target/surefire-reports/*.xml',
+                    junit testResults: 'target/surefire-reports/*.xml',
                           allowEmptyResults: true
                 }
             }
@@ -49,9 +48,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    dir('NEPHRO') {
-                        sh 'mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-nephro -Dsonar.projectName="KidneyCare - NEPHRO"'
-                    }
+                    sh 'mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-nephro'
                 }
             }
         }
@@ -66,33 +63,31 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir('NEPHRO') {
-                    sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
-                    sh "docker tag ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKERHUB_USER}/${IMAGE_NAME}:latest"
-                }
+                sh "docker build -t ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                sh "docker tag  ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG} \
+                                ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:latest"
             }
         }
 
-    stage('Push to Docker Hub') {
-    steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'dockerhub-credentials',
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
-
-            sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-
-            sh "docker push ${DOCKER_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
-            sh "docker push ${DOCKER_USER}/${IMAGE_NAME}:latest"
+        stage('Push Docker Hub') {
+            steps {
+                sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
+                sh "docker push ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:${IMAGE_TAG}"
+                sh "docker push ${DOCKERHUB_CREDENTIALS_USR}/${IMAGE_NAME}:latest"
+            }
         }
-    }
-}
     }
 
     post {
-        success { echo "NEPHRO — Build #${env.BUILD_NUMBER} reussi." }
-        failure { echo "NEPHRO — Build #${env.BUILD_NUMBER} echoue." }
-        always  { sh 'docker logout || true'; cleanWs() }
+        success {
+            echo "Build #${env.BUILD_NUMBER} — NEPHRO deploye avec succes."
+        }
+        failure {
+            echo "Build #${env.BUILD_NUMBER} — Echec. Consultez les logs."
+        }
+        always {
+            sh 'docker logout || true'
+            cleanWs()
+        }
     }
 }
