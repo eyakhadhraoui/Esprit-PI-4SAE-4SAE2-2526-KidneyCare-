@@ -56,7 +56,7 @@ class GraftFunctionEntryIntegrationTest {
         mockMvc.perform(post("/api/graft-entries")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sampleEntry)))
-                .andExpect(status().isOk())   // changed from isCreated()
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.patientId").value("patient-001"))
                 .andExpect(jsonPath("$.creatinine").value(1.2))
                 .andExpect(jsonPath("$.eGFR").value(55.0))
