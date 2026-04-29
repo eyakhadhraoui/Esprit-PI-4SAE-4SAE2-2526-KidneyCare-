@@ -44,7 +44,13 @@ public class GraftFunctionEntryController {
     @PutMapping("/{id}")
     public ResponseEntity<GraftFunctionEntry> update(@PathVariable Long id,
                                                      @RequestBody GraftFunctionEntry entry) {
-        return ResponseEntity.ok(service.update(id, entry));
+        try {
+            GraftFunctionEntry updated = service.update(id, entry);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
