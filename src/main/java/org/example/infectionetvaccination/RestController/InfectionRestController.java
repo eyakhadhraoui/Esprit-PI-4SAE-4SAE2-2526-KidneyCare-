@@ -3,6 +3,7 @@ package org.example.infectionetvaccination.RestController;
 import org.example.infectionetvaccination.DTO.GraftFunctionEntry;
 import org.example.infectionetvaccination.Entity.Infection;
 import org.example.infectionetvaccination.Service.InfectionService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,11 +29,17 @@ public class InfectionRestController {
     public Infection getById(@PathVariable int id) { return infectionService.findById(id).orElseThrow(); }
 
     @PutMapping("/{id}")
-    public Infection update(@PathVariable int id, @RequestBody Infection infection) {
-        return infectionService.update(id, infection);
-    }
+    public ResponseEntity<Infection> update(@PathVariable int id, @RequestBody Infection infection) {
+        try {
+            Infection updated = infectionService.update(id, infection);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            // The service throws RuntimeException with message "Infection not found: " + id
+            return ResponseEntity.notFound().build();
+        }}
 
-    @DeleteMapping("/{id}")
+
+            @DeleteMapping("/{id}")
     public void delete(@PathVariable int id) { infectionService.delete(id); }
 
 
