@@ -26,7 +26,11 @@ public class InfectionRestController {
     public List<Infection> getAll() { return infectionService.findAll(); }
 
     @GetMapping("/{id}")
-    public Infection getById(@PathVariable int id) { return infectionService.findById(id).orElseThrow(); }
+    public ResponseEntity<Infection> getById(@PathVariable int id) {
+        return infectionService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @PutMapping("/{id}")
     public ResponseEntity<Infection> update(@PathVariable int id, @RequestBody Infection infection) {

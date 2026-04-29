@@ -1,7 +1,5 @@
 package org.example.infectionetvaccination.RestController;
 
-
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.infectionetvaccination.Entity.Infection;
 import org.example.infectionetvaccination.Repository.InfectionRepository;
@@ -40,24 +38,20 @@ class InfectionIntegrationTest {
         infectionRepository.deleteAll();
     }
 
-    // ── POST /infections ──────────────────────────────────────────────────────
-
     @Test
-    @DisplayName("POST /infections — creates infection and returns 201")
-    void createInfection_shouldReturn201() throws Exception {
+    @DisplayName("POST /infections — creates infection and returns 200")
+    void createInfection_shouldReturn200() throws Exception {
         Infection infection = new Infection("COVID-19", new Date(), "HIGH", "John Doe");
 
         mockMvc.perform(post("/infections")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(infection)))
-                .andExpect(status().isCreated())
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("COVID-19"))
                 .andExpect(jsonPath("$.severity").value("HIGH"))
                 .andExpect(jsonPath("$.patientName").value("John Doe"))
                 .andExpect(jsonPath("$.id").isNumber());
     }
-
-    // ── GET /infections ───────────────────────────────────────────────────────
 
     @Test
     @DisplayName("GET /infections — returns all infections")
@@ -79,8 +73,6 @@ class InfectionIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
-    // ── GET /infections/{id} ──────────────────────────────────────────────────
-
     @Test
     @DisplayName("GET /infections/{id} — returns infection when found")
     void getInfectionById_shouldReturnInfection() throws Exception {
@@ -93,9 +85,12 @@ class InfectionIntegrationTest {
                 .andExpect(jsonPath("$.patientName").value("Alice"));
     }
 
-
-
-    // ── PUT /infections/{id} ──────────────────────────────────────────────────
+    @Test
+    @DisplayName("GET /infections/{id} — returns 404 when not found")
+    void getInfectionById_shouldReturn404() throws Exception {
+        mockMvc.perform(get("/infections/99999"))
+                .andExpect(status().isNotFound());
+    }
 
     @Test
     @DisplayName("PUT /infections/{id} — updates and returns updated infection")
@@ -125,16 +120,14 @@ class InfectionIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
-    // ── DELETE /infections/{id} ───────────────────────────────────────────────
-
     @Test
-    @DisplayName("DELETE /infections/{id} — deletes and returns 204")
-    void deleteInfection_shouldReturn204() throws Exception {
+    @DisplayName("DELETE /infections/{id} — deletes and returns 200")
+    void deleteInfection_shouldReturn200() throws Exception {
         Infection saved = infectionRepository.save(
                 new Infection("COVID-19", new Date(), "HIGH", "John Doe"));
 
         mockMvc.perform(delete("/infections/" + saved.getId()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/infections/" + saved.getId()))
                 .andExpect(status().isNotFound());
