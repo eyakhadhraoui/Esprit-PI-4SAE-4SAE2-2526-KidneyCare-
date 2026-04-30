@@ -1,0 +1,14 @@
+target/
+node_modules/
+*.log
+*.jar
+*.war
+*.class
+.vagrant/
+__pycache__/
+uploads/
+wetransfer_api_2026-03-24_1825/
+replay_pid228924.log
+.idea/
+.vscode/
+*.iml
