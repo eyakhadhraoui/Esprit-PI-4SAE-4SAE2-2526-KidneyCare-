@@ -12,3 +12,9 @@ replay_pid228924.log
 .idea/
 .vscode/
 *.iml
+
+API/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-/
+EurekaServer/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-/
+mon-projet/node_modules/
+mon-projet/.angular/
+**/target/
