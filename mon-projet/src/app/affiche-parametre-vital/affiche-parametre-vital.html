@@ -1,0 +1,858 @@
+<div class="vp-wrap">
+  <header class="vp-hero">
+    <div class="vp-hero-left">
+      <div class="vp-hero-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </div>
+      <div>
+        <h1 class="vp-hero-title">Paramètres Vitaux</h1>
+        <p class="vp-hero-sub">Suivi clinique post-greffe rénale pédiatrique</p>
+      </div>
+    </div>
+    <div class="vp-hero-actions">
+      <button type="button" class="vp-btn-outline" (click)="openNephroModal('egfr')">
+        Outils Néphro
+        <span class="vp-badge-pink">{{ totalParametres }}</span>
+      </button>
+      <a class="vp-btn-outline" routerLink="/back/analyse-vitale">Analyse Vitale</a>
+      <div class="vp-dropdown">
+        <button type="button" class="vp-btn-outline vp-btn-accent" (click)="showNouveauMenu = !showNouveauMenu">+ Nouveau</button>
+        <div class="vp-dropdown-menu" *ngIf="showNouveauMenu">
+          <a routerLink="/back/ajouter-constante" (click)="showNouveauMenu = false">Constante vitale</a>
+          <a routerLink="/back/ajouter-indicateur" (click)="showNouveauMenu = false">Indicateur vital</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="vp-kpi-row">
+    <button
+      type="button"
+      class="vp-kpi vp-kpi--pink"
+      [class.vp-kpi--active]="activeView === 'parametres'"
+      (click)="setActiveView('parametres')"
+    >
+      <span class="vp-kpi-label">Paramètres vitaux</span>
+      <span class="vp-kpi-value">{{ totalParametres }}</span>
+      <span class="vp-kpi-deco vp-kpi-deco--heart" aria-hidden="true">♥</span>
+    </button>
+    <button
+      type="button"
+      class="vp-kpi vp-kpi--blue"
+      [class.vp-kpi--active]="activeView === 'constantes'"
+      (click)="setActiveView('constantes')"
+    >
+      <span class="vp-kpi-label">Constantes vitales</span>
+      <span class="vp-kpi-value">{{ totalConstantes }}</span>
+      <span class="vp-kpi-deco" aria-hidden="true">☰</span>
+    </button>
+    <button
+      type="button"
+      class="vp-kpi vp-kpi--green"
+      [class.vp-kpi--active]="activeView === 'indicateurs'"
+      (click)="setActiveView('indicateurs')"
+    >
+      <span class="vp-kpi-label">Indicateurs vitaux</span>
+      <span class="vp-kpi-value">{{ totalIndicateurs }}</span>
+      <span class="vp-kpi-deco" aria-hidden="true">↗</span>
+    </button>
+  </div>
+
+  <div class="vp-toolbar">
+    <div class="vp-segment">
+      <button type="button" [class.is-active]="activeView === 'tous'" (click)="setActiveView('tous')">Tous</button>
+      <button type="button" [class.is-active]="activeView === 'parametres'" (click)="setActiveView('parametres')">Paramètres</button>
+      <button type="button" [class.is-active]="activeView === 'constantes'" (click)="setActiveView('constantes')">Constantes</button>
+      <button type="button" [class.is-active]="activeView === 'indicateurs'" (click)="setActiveView('indicateurs')">Indicateurs</button>
+    </div>
+    <div class="vp-toolbar-right">
+      <div class="search-box vp-search">
+        <span class="search-icon">🔍</span>
+        <input
+          class="search-input"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearch()"
+          placeholder="Rechercher un paramètre..."
+        />
+        <button type="button" class="clear-btn" *ngIf="searchTerm" (click)="searchTerm = ''; onSearch()">✕</button>
+      </div>
+      <div class="filter-group">
+        <label>Trier</label>
+        <select class="filter-select" [(ngModel)]="sortOrder" (ngModelChange)="filterItems()">
+          <option value="recent">Plus récent</option>
+          <option value="az">A → Z</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Page</label>
+        <select class="filter-select" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()">
+          <option [ngValue]="5">5 / page</option>
+          <option [ngValue]="10">10 / page</option>
+          <option [ngValue]="20">20 / page</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <p class="results-count" *ngIf="!loading">
+    {{ filteredUnified.length }} élément(s) — page {{ currentPage }} / {{ totalPages }}
+  </p>
+
+  <div class="loading-state" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Chargement…</p>
+  </div>
+
+  <div class="vp-table-shell" *ngIf="!loading">
+    <div *ngIf="pagedUnified.length === 0" class="empty-state vp-empty">
+      <div class="empty-icon">💓</div>
+      <p>Aucun élément ne correspond à votre recherche</p>
+    </div>
+    <div class="vp-cards-grid" *ngIf="pagedUnified.length > 0">
+      <article
+        *ngFor="let row of pagedUnified"
+        class="vp-card"
+        [class.vp-card--alert]="row.outOfRange"
+      >
+        <div class="vp-card-top">
+          <div class="vp-card-title-block">
+            <h3 class="vp-card-title">{{ row.nom }}</h3>
+            <span class="vp-kind-tag" *ngIf="activeView === 'tous'">{{
+              row.kind === 'parametre' ? 'Mesure' : row.kind === 'constante' ? 'Référentiel' : 'Biomarqueur'
+            }}</span>
+          </div>
+          <div class="vp-card-actions">
+            <button type="button" class="vp-icon-btn" title="Voir" (click)="viewRow(row)">👁</button>
+            <button type="button" class="vp-icon-btn" title="Modifier" (click)="editRow(row)">✏️</button>
+            <button type="button" class="vp-icon-btn vp-icon-btn--danger" title="Supprimer" (click)="deleteRow(row)">🗑</button>
+          </div>
+        </div>
+        <dl class="vp-card-dl">
+          <div class="vp-card-dl-row">
+            <dt>Unité</dt>
+            <dd><span class="unit-pill">{{ row.unite }}</span></dd>
+          </div>
+          <div class="vp-card-dl-row">
+            <dt>Plage normale</dt>
+            <dd class="vp-card-plage">{{ row.plage }}</dd>
+          </div>
+          <div class="vp-card-dl-row">
+            <dt>Type</dt>
+            <dd><span class="type-pill" [ngClass]="'type-pill--' + row.typePill">{{ row.typeLabel }}</span></dd>
+          </div>
+          <div class="vp-card-dl-row">
+            <dt>Statut</dt>
+            <dd><span class="statut-pill" [ngClass]="'statut-pill--' + row.statutPill">{{ row.statutLabel }}</span></dd>
+          </div>
+        </dl>
+      </article>
+    </div>
+  </div>
+
+  <div class="vp-preview-overlay" *ngIf="previewRow" (click)="closeRowPreview()">
+    <div class="vp-preview-card" (click)="$event.stopPropagation()">
+      <button type="button" class="vp-preview-close" (click)="closeRowPreview()">✕</button>
+      <h3>{{ previewRow.nom }}</h3>
+      <p class="vp-preview-meta"><strong>Unité :</strong> {{ previewRow.unite }}</p>
+      <p class="vp-preview-meta"><strong>Plage :</strong> {{ previewRow.plage }}</p>
+      <p class="vp-preview-meta"><strong>Type :</strong> {{ previewRow.typeLabel }}</p>
+      <p class="vp-preview-meta"><strong>Statut :</strong> {{ previewRow.statutLabel }}</p>
+      <div class="vp-preview-actions">
+        <button type="button" class="vp-btn-solid" (click)="editRow(previewRow)">Modifier</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pagination" *ngIf="!loading && totalPages > 1">
+    <button type="button" class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">‹</button>
+    <button
+      type="button"
+      class="page-btn"
+      *ngFor="let p of pagesArray"
+      [class.page-btn-active]="p === currentPage"
+      (click)="goToPage(p)"
+    >
+      {{ p }}
+    </button>
+    <button
+      type="button"
+      class="page-btn"
+      [disabled]="currentPage === totalPages"
+      (click)="goToPage(currentPage + 1)"
+    >
+      ›
+    </button>
+  </div>
+
+  <!-- MODAL EDIT CONSTANTE (extrait du collage utilisateur — raccourci : même structure que spec) -->
+  <div class="edit-overlay" *ngIf="showEditConstanteModal" (click)="closeEditConstanteModal()">
+    <div class="edit-modal" (click)="$event.stopPropagation()">
+      <div class="em-header">
+        <div class="em-header-left">
+          <div class="em-header-icon">🔬</div>
+          <div>
+            <h2 class="em-title">Modifier la Constante Vitale</h2>
+            <p class="em-subtitle">Mise à jour de la constante #{{ editConstanteId }}</p>
+          </div>
+        </div>
+        <button type="button" class="em-close" (click)="closeEditConstanteModal()">✕</button>
+      </div>
+      <div class="em-body" *ngIf="editConstanteIsFetching">
+        <div class="em-skeleton">
+          <div class="sk-line sk-title"></div>
+          <div class="sk-line sk-field"></div>
+        </div>
+      </div>
+      <div class="em-body" *ngIf="!editConstanteIsFetching">
+        <form (ngSubmit)="saveEditConstante()" #editConstanteForm="ngForm" novalidate>
+          <div class="em-card">
+            <div class="em-card-header">
+              <div class="em-card-icon em-icon-indigo">📊</div>
+              <div>
+                <div class="em-card-title">Indicateur Vital associé <span class="em-optional">(optionnel)</span></div>
+                <div class="em-card-desc">Lier cette constante à un biomarqueur rénal</div>
+              </div>
+            </div>
+            <div class="em-card-body">
+              <div class="em-field">
+                <label class="em-label">Sélectionner un Indicateur Vital</label>
+                <div class="em-input-wrap">
+                  <span class="em-input-icon">📊</span>
+                  <select
+                    class="em-input em-select"
+                    [(ngModel)]="editConstante.selectedIndicateurId"
+                    name="indicateur"
+                    (ngModelChange)="onEditConstanteIndicateurChange()"
+                    [class.em-input-valid]="editConstante.selectedIndicateurId"
+                  >
+                    <option [ngValue]="null">— Aucun indicateur —</option>
+                    <option *ngFor="let ind of indicateursList" [ngValue]="ind.idIndicateurVital">
+                      {{ ind.nomIndicateur }} — {{ ind.unite }}
+                    </option>
+                  </select>
+                </div>
+                <div *ngIf="editConstanteLoadingIndicateurs" class="em-field-msg" style="color: #64748b">⏳ Chargement…</div>
+              </div>
+              <div class="em-indicateur-preview" *ngIf="getEditSelectedIndicateur(); let ind">
+                <span class="em-ind-icon">📊</span>
+                <div class="em-ind-body">
+                  <strong>{{ ind.nomIndicateur }}</strong>
+                  <span class="unit-tag unit-tag-blue" style="margin-left: 8px">{{ ind.unite }}</span>
+                </div>
+                <span class="em-ind-hint">💡 Nom et unité auto-remplis</span>
+              </div>
+            </div>
+          </div>
+          <div class="em-card">
+            <div class="em-card-header">
+              <div class="em-card-icon em-icon-blue">🏷️</div>
+              <div>
+                <div class="em-card-title">Identité de la Constante</div>
+                <div class="em-card-desc">Nom clinique et unité de mesure</div>
+              </div>
+            </div>
+            <div class="em-card-body">
+              <div class="em-form-grid">
+                <div class="em-field">
+                  <label class="em-label">Nom du paramètre <span class="em-req">*</span></label>
+                  <div class="em-input-wrap">
+                    <span class="em-input-icon">🏷️</span>
+                    <input
+                      type="text"
+                      [(ngModel)]="editConstante.nomParametre"
+                      name="nomParametre"
+                      required
+                      minlength="2"
+                      class="em-input"
+                      (input)="calcEditConstanteProgress()"
+                    />
+                  </div>
+                </div>
+                <div class="em-field">
+                  <label class="em-label">Unité <span class="em-req">*</span></label>
+                  <div class="em-input-wrap">
+                    <span class="em-input-icon">📏</span>
+                    <input
+                      type="text"
+                      [(ngModel)]="editConstante.unite"
+                      name="unite"
+                      required
+                      class="em-input"
+                      (input)="calcEditConstanteProgress()"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="em-card">
+            <div class="em-card-header">
+              <div class="em-card-icon em-icon-green">📊</div>
+              <div>
+                <div class="em-card-title">Valeurs normales</div>
+              </div>
+            </div>
+            <div class="em-card-body">
+              <div class="em-form-grid">
+                <div class="em-field">
+                  <label class="em-label">Min <span class="em-req">*</span></label>
+                  <input
+                    type="number"
+                    [(ngModel)]="editConstante.valeurMinNormale"
+                    name="vmin"
+                    required
+                    step="0.01"
+                    class="em-input"
+                    (input)="calcEditConstanteProgress()"
+                  />
+                </div>
+                <div class="em-field">
+                  <label class="em-label">Max <span class="em-req">*</span></label>
+                  <input
+                    type="number"
+                    [(ngModel)]="editConstante.valeurMaxNormale"
+                    name="vmax"
+                    required
+                    step="0.01"
+                    class="em-input"
+                    (input)="calcEditConstanteProgress()"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="em-actions">
+            <button type="button" class="em-btn-cancel" (click)="closeEditConstanteModal()">Annuler</button>
+            <button
+              type="submit"
+              class="em-btn-save em-btn-save-green"
+              [disabled]="editConstanteForm.invalid || editConstanteIsLoading"
+            >
+              💾 Enregistrer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT PARAMÈTRE -->
+  <div class="edit-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+    <div class="edit-modal" (click)="$event.stopPropagation()">
+      <div class="em-header">
+        <div class="em-header-left">
+          <div class="em-header-icon">✏️</div>
+          <div>
+            <h2 class="em-title">Modifier le Paramètre Vital</h2>
+            <p class="em-subtitle">#{{ editParametreId }}</p>
+          </div>
+        </div>
+        <button type="button" class="em-close" (click)="closeEditModal()">✕</button>
+      </div>
+      <div class="em-body" *ngIf="editIsFetching">
+        <div class="em-skeleton"><div class="sk-line sk-title"></div></div>
+      </div>
+      <div class="em-body" *ngIf="!editIsFetching">
+        <form (ngSubmit)="saveEditParametre()" #editForm="ngForm" novalidate>
+          <div class="em-form-grid">
+            <div class="em-field">
+              <label class="em-label">Nom</label>
+              <input type="text" [(ngModel)]="editParametre.nomParametre" name="nom" required class="em-input" />
+            </div>
+            <div class="em-field">
+              <label class="em-label">Unité</label>
+              <input type="text" [(ngModel)]="editParametre.unite" name="u" required class="em-input" />
+            </div>
+            <div class="em-field">
+              <label class="em-label">Min</label>
+              <input type="number" [(ngModel)]="editParametre.valeurNormaleMin" name="min" required class="em-input" />
+            </div>
+            <div class="em-field">
+              <label class="em-label">Max</label>
+              <input type="number" [(ngModel)]="editParametre.valeurNormaleMax" name="max" required class="em-input" />
+            </div>
+          </div>
+          <div class="em-field">
+            <label class="em-label">Description</label>
+            <textarea [(ngModel)]="editParametre.description" name="desc" class="em-textarea" rows="3"></textarea>
+          </div>
+          <div class="em-actions">
+            <button type="button" class="em-btn-cancel" (click)="closeEditModal()">Annuler</button>
+            <button type="submit" class="em-btn-save" [disabled]="editForm.invalid || editIsLoading">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDIT INDICATEUR -->
+  <div class="edit-overlay" *ngIf="showEditIndicateurModal" (click)="closeEditIndicateurModal()">
+    <div class="edit-modal" (click)="$event.stopPropagation()">
+      <div class="em-header">
+        <div class="em-header-left">
+          <div class="em-header-icon">📊</div>
+          <div>
+            <h2 class="em-title">Modifier l'Indicateur Vital</h2>
+            <p class="em-subtitle">#{{ editIndicateurId }}</p>
+          </div>
+        </div>
+        <button type="button" class="em-close" (click)="closeEditIndicateurModal()">✕</button>
+      </div>
+      <div class="em-body" *ngIf="editIndicateurIsFetching">
+        <div class="em-skeleton"><div class="sk-line sk-title"></div></div>
+      </div>
+      <div class="em-body" *ngIf="!editIndicateurIsFetching">
+        <form (ngSubmit)="saveEditIndicateur()" #editIndForm="ngForm">
+          <div class="em-field">
+            <label class="em-label">Nom</label>
+            <input type="text" [(ngModel)]="editIndicateur.nomIndicateur" name="n" required class="em-input" />
+          </div>
+          <div class="em-field">
+            <label class="em-label">Unité</label>
+            <input type="text" [(ngModel)]="editIndicateur.unite" name="u" required class="em-input" />
+          </div>
+          <div class="em-field">
+            <label class="em-label">Description</label>
+            <textarea [(ngModel)]="editIndicateur.description" name="d" class="em-textarea"></textarea>
+          </div>
+          <label><input type="checkbox" [(ngModel)]="editIndicateur.actif" name="act" /> Actif</label>
+          <div class="em-actions">
+            <button type="button" class="em-btn-cancel" (click)="closeEditIndicateurModal()">Annuler</button>
+            <button type="submit" class="em-btn-save" [disabled]="editIndForm.invalid || editIndicateurIsLoading">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MODAL OUTILS NÉPHRO PÉDIATRIQUE — 8 onglets
+  ═══════════════════════════════════════════════════════ -->
+  <div class="nephro-overlay" *ngIf="showNephroModal" (click)="closeNephroModal()">
+    <div class="nephro-modal" (click)="$event.stopPropagation()">
+
+      <div class="nm-header">
+        <div class="nm-header-left">
+          <div class="nm-header-icon">🧬</div>
+          <div>
+            <h2 class="nm-title">Outils Néphro Pédiatrique</h2>
+            <p class="nm-subtitle">Transplantation rénale · Calculs cliniques · Guidelines KDIGO 2023</p>
+          </div>
+        </div>
+        <button type="button" class="nm-close" (click)="closeNephroModal()">✕</button>
+      </div>
+
+      <div class="nm-tabs-wrap">
+        <div class="nm-tabs">
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='egfr'" (click)="nephroTab='egfr'">
+            <span>🧮</span><span class="nm-tab-text">eGFR Schwartz</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='ckd'" (click)="nephroTab='ckd'">
+            <span>📈</span><span class="nm-tab-text">CKD Tracker</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='rejet'" (click)="nephroTab='rejet'">
+            <span>🚨</span><span class="nm-tab-text">Rejet greffe</span>
+            <span class="nm-tab-alert" *ngIf="rejectionRiskLevel==='critique'||rejectionRiskLevel==='eleve'">!</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='croissance'" (click)="nephroTab='croissance'">
+            <span>📏</span><span class="nm-tab-text">Croissance</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='immuno'" (click)="nephroTab='immuno'">
+            <span>💊</span><span class="nm-tab-text">Immunosup.</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='pcr'" (click)="nephroTab='pcr'">
+            <span>🧪</span><span class="nm-tab-text">PCR Urinaire</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='hydrique'" (click)="nephroTab='hydrique'">
+            <span>💧</span><span class="nm-tab-text">Bilan hydrique</span>
+          </button>
+          <button type="button" class="nm-tab" [class.nm-tab-active]="nephroTab==='fragilite'" (click)="nephroTab='fragilite'">
+            <span>⚡</span><span class="nm-tab-text">Fragilité</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="nm-body">
+
+        <!-- ── ONGLET 1 : eGFR SCHWARTZ ─────────────────── -->
+        <div *ngIf="nephroTab==='egfr'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-blue">🧮</div>
+            <div>
+              <div class="nth-title">Calculateur eGFR pédiatrique — Formule de Schwartz révisée 2009</div>
+              <div class="nth-sub">eGFR = 0.413 × Taille(cm) / Créatinine sérique(mg/dL) · Validée 1–18 ans post-transplantation</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field">
+              <label class="nm-label">🎂 Âge (années)</label>
+              <input type="number" class="nm-input" [(ngModel)]="egfrAge" (ngModelChange)="calcEgfr()" min="1" max="18" placeholder="ex: 10">
+            </div>
+            <div class="nm-field">
+              <label class="nm-label">📏 Taille (cm)</label>
+              <input type="number" class="nm-input" [(ngModel)]="egfrTaille" (ngModelChange)="calcEgfr()" min="50" max="200" placeholder="ex: 135">
+            </div>
+            <div class="nm-field">
+              <label class="nm-label">🧪 Créatinine sérique (mg/dL)</label>
+              <input type="number" class="nm-input" [(ngModel)]="egfrCreat" (ngModelChange)="calcEgfr()" min="0.1" step="0.01" placeholder="ex: 0.8">
+            </div>
+            <div class="nm-field">
+              <label class="nm-label">👤 Sexe</label>
+              <select class="nm-select" [(ngModel)]="egfrSexe" (ngModelChange)="calcEgfr()">
+                <option value="M">Masculin</option><option value="F">Féminin</option>
+              </select>
+            </div>
+          </div>
+          <div *ngIf="egfrResult === null" class="nm-placeholder"><span>🧮</span> Renseignez âge, taille et créatinine pour calculer l'eGFR</div>
+          <div *ngIf="egfrResult !== null" class="nm-result-card" [ngClass]="'nrc-' + egfrCkdColor">
+            <div class="nrc-main">
+              <div class="nrc-value">{{ egfrResult | number:'1.0-1' }}</div>
+              <div class="nrc-unit">mL/min/1.73m²</div>
+            </div>
+            <div class="nrc-info">
+              <div class="nrc-ckd-badge" [ngClass]="'ckdb-' + egfrCkdColor">{{ egfrCkdStage }}</div>
+              <div class="nrc-ckd-label">{{ egfrCkdLabel }}</div>
+              <div class="nrc-kdigo">{{ egfrKdigoText }}</div>
+            </div>
+          </div>
+          <div *ngIf="egfrResult !== null" class="ckd-spectrum">
+            <div class="ckd-spec-title">Spectre CKD-KDIGO</div>
+            <div class="ckd-spec-bar">
+              <div class="csb-seg csb-1">G1</div>
+              <div class="csb-seg csb-2">G2</div>
+              <div class="csb-seg csb-3a">G3a</div>
+              <div class="csb-seg csb-3b">G3b</div>
+              <div class="csb-seg csb-4">G4</div>
+              <div class="csb-seg csb-5">G5</div>
+              <div class="csb-cursor" [style.left]="egfrBarPct + '%'">▼</div>
+            </div>
+            <div class="ckd-spec-labels"><span>≥90</span><span>60</span><span>45</span><span>30</span><span>15</span><span>&lt;15</span></div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 2 : CKD TRACKER ─────────────────────── -->
+        <div *ngIf="nephroTab==='ckd'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-purple">📈</div>
+            <div>
+              <div class="nth-title">Suivi longitudinal du DFG — Détection de progression CKD</div>
+              <div class="nth-sub">Ajoutez des mesures eGFR datées pour tracer l'évolution et détecter une dégradation de stade</div>
+            </div>
+          </div>
+          <div class="ckd-add-form">
+            <div class="nm-field"><label class="nm-label">Date</label><input type="date" class="nm-input" [(ngModel)]="ckdNewDate"></div>
+            <div class="nm-field"><label class="nm-label">eGFR (mL/min/1.73m²)</label><input type="number" class="nm-input" [(ngModel)]="ckdNewEgfr" placeholder="ex: 55" min="1" max="200"></div>
+            <button type="button" class="nm-btn-add" (click)="addCkdMesure()">+ Ajouter</button>
+          </div>
+          <div *ngIf="ckdMesures.length === 0" class="nm-placeholder"><span>📈</span> Aucune mesure enregistrée — ajoutez des valeurs eGFR datées</div>
+          <div *ngIf="ckdMesures.length > 0" class="ckd-timeline">
+            <div class="ckd-tl-header">
+              <span>{{ ckdMesures.length }} mesure(s) enregistrée(s)</span>
+              <span [class.ckd-alert]="ckdDegradation" [class.ckd-stable]="!ckdDegradation">
+                {{ ckdDegradation ? '⬇ Progression CKD détectée' : '✓ Stade stable' }}
+              </span>
+            </div>
+            <div class="ckd-tl-rows">
+              <div *ngFor="let m of ckdMesures; let idx = index" class="ckd-tl-row">
+                <div class="ckd-tl-dot" [style.background]="getCkdColor(m.egfr)==='vert'?'#16a34a':getCkdColor(m.egfr)==='jaune'?'#ca8a04':getCkdColor(m.egfr)==='orange'?'#d97706':getCkdColor(m.egfr)==='rouge'?'#dc2626':'#7f1d1d'"></div>
+                <div class="ckd-tl-body">
+                  <span class="ckd-tl-date">{{ m.date }}</span>
+                  <span class="ckd-tl-val">{{ m.egfr }} mL/min</span>
+                  <span class="ckd-tl-stage" [style.background]="getCkdColor(m.egfr)==='vert'?'#f0fdf4':'#fef2f2'" [style.color]="getCkdColor(m.egfr)==='vert'?'#16a34a':'#dc2626'">{{ getCkdStage(m.egfr) }}</span>
+                  <span *ngIf="idx > 0" class="ckd-tl-delta" [class.delta-neg]="m.egfr < ckdMesures[idx-1].egfr">
+                    {{ m.egfr >= ckdMesures[idx-1].egfr ? '+' : '' }}{{ (m.egfr - ckdMesures[idx-1].egfr).toFixed(1) }}
+                  </span>
+                </div>
+                <button type="button" class="ckd-tl-del" (click)="removeCkdMesure(idx)">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 3 : DÉTECTEUR DE REJET ─────────────── -->
+        <div *ngIf="nephroTab==='rejet'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-red">🚨</div>
+            <div>
+              <div class="nth-title">Score de risque de rejet aigu du greffon</div>
+              <div class="nth-sub">Combinaison de biomarqueurs cliniques et biologiques — scoring 0–100</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">Créatinine (mg/dL)</label><input type="number" class="nm-input" [(ngModel)]="rejCreat" (ngModelChange)="calcRejet()" step="0.01" placeholder="ex: 1.2"></div>
+            <div class="nm-field"><label class="nm-label">Protéinurie (mg/24h)</label><input type="number" class="nm-input" [(ngModel)]="rejProteinurie" (ngModelChange)="calcRejet()" placeholder="ex: 200"></div>
+            <div class="nm-field"><label class="nm-label">Tension systolique (mmHg)</label><input type="number" class="nm-input" [(ngModel)]="rejTension" (ngModelChange)="calcRejet()" placeholder="ex: 135"></div>
+            <div class="nm-field"><label class="nm-label">DFG actuel (mL/min)</label><input type="number" class="nm-input" [(ngModel)]="rejDfg" (ngModelChange)="calcRejet()" placeholder="ex: 40"></div>
+            <div class="nm-field"><label class="nm-label">DFG baseline (mL/min)</label><input type="number" class="nm-input" [(ngModel)]="rejDfgBase" (ngModelChange)="calcRejet()" placeholder="ex: 60"></div>
+            <div class="nm-field"><label class="nm-label">Fièvre (°C)</label><input type="number" class="nm-input" [(ngModel)]="rejFievre" (ngModelChange)="calcRejet()" step="0.1" placeholder="ex: 38.5"></div>
+          </div>
+          <div *ngIf="rejectionScore === null" class="nm-placeholder"><span>🚨</span> Renseignez au moins 2 paramètres pour calculer le score</div>
+          <div *ngIf="rejectionScore !== null" class="rejet-score-card" [ngClass]="'rsc-' + rejectionRiskLevel">
+            <div class="rsc-gauge">
+              <div class="rsc-gauge-track">
+                <div class="rsc-gauge-fill" [ngClass]="'rscf-' + rejectionRiskLevel" [style.width]="rejectionScore + '%'"></div>
+              </div>
+              <div class="rsc-gauge-num">{{ rejectionScore }}<span>/100</span></div>
+            </div>
+            <div class="rsc-verdict">
+              <div class="rsc-level" [ngClass]="'rscl-' + rejectionRiskLevel">{{ rejectionRiskLabel }}</div>
+              <div class="rsc-detail">{{ rejectionRiskDetail }}</div>
+            </div>
+            <div class="rsc-criteria">
+              <div *ngFor="let c of rejectionCriteria" class="rsc-crit-row" [class.rsc-crit-active]="c.active">
+                <span>{{ c.active ? '✓' : '○' }}</span>
+                <span class="rsc-crit-name">{{ c.name }}</span>
+                <span *ngIf="c.active" class="rsc-crit-pts">+{{ c.pts }} pts</span>
+              </div>
+            </div>
+            <div class="rsc-recomm" [ngClass]="'rscr-' + rejectionRiskLevel">
+              <div class="rscr-title">Conduite à tenir</div>
+              <div class="rscr-text">{{ rejectionRecommandation }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 4 : COURBES DE CROISSANCE ──────────── -->
+        <div *ngIf="nephroTab==='croissance'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-green">📏</div>
+            <div>
+              <div class="nth-title">Courbes de croissance OMS — Percentiles poids & taille</div>
+              <div class="nth-sub">Référence OMS 2–18 ans · Détection retard staturo-pondéral post-greffe</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">🎂 Âge (années)</label><input type="number" class="nm-input" [(ngModel)]="croissAge" (ngModelChange)="calcCroissance()" min="2" max="18" placeholder="ex: 8"></div>
+            <div class="nm-field"><label class="nm-label">👤 Sexe</label><select class="nm-select" [(ngModel)]="croissanceSexe" (ngModelChange)="calcCroissance()"><option value="M">Masculin</option><option value="F">Féminin</option></select></div>
+            <div class="nm-field"><label class="nm-label">⚖️ Poids (kg)</label><input type="number" class="nm-input" [(ngModel)]="croissPoids" (ngModelChange)="calcCroissance()" step="0.1" placeholder="ex: 25"></div>
+            <div class="nm-field"><label class="nm-label">📏 Taille (cm)</label><input type="number" class="nm-input" [(ngModel)]="croissTaille" (ngModelChange)="calcCroissance()" placeholder="ex: 128"></div>
+            <div class="nm-field"><label class="nm-label">💊 Corticothérapie</label><select class="nm-select" [(ngModel)]="croissCortico" (ngModelChange)="calcCroissance()"><option value="non">Non</option><option value="oui">Oui</option></select></div>
+          </div>
+          <div *ngIf="!croissResult" class="nm-placeholder"><span>📏</span> Renseignez âge, poids et taille pour évaluer la croissance</div>
+          <div *ngIf="croissResult" class="nm-tab-content">
+            <div class="croiss-perc-grid">
+              <div class="croiss-perc-card" [ngClass]="'cpc-' + croissResult['poidsPercentileColor']">
+                <div class="cpc-icon">⚖️</div>
+                <div class="cpc-val">P{{ croissResult['poidsPercentile'] }}</div>
+                <div class="cpc-lbl">Poids</div>
+                <div class="cpc-ref">Médiane OMS: {{ croissResult['poidsMediane'] }} kg</div>
+              </div>
+              <div class="croiss-perc-card" [ngClass]="'cpc-' + croissResult['taillePercentileColor']">
+                <div class="cpc-icon">📏</div>
+                <div class="cpc-val">P{{ croissResult['taillePercentile'] }}</div>
+                <div class="cpc-lbl">Taille</div>
+                <div class="cpc-ref">Médiane OMS: {{ croissResult['tailleMediane'] }} cm</div>
+              </div>
+              <div class="croiss-perc-card" [ngClass]="'cpc-' + croissResult['imcColor']">
+                <div class="cpc-icon">📐</div>
+                <div class="cpc-val">{{ croissResult['imc'] | number:'1.1-1' }}</div>
+                <div class="cpc-lbl">IMC</div>
+                <div class="cpc-ref">{{ croissResult['imcLabel'] }}</div>
+              </div>
+            </div>
+            <div *ngIf="croissResult['retardCroissance']" class="croiss-alert" [ngClass]="'ca-' + croissResult['retardSeverite']">
+              <div class="ca-icon">⚠️</div>
+              <div><div class="ca-title">{{ croissResult['retardTitre'] }}</div><div class="ca-text">{{ croissResult['retardTexte'] }}</div></div>
+            </div>
+            <div class="croiss-bar-wrap">
+              <div class="cb-title">Position dans les courbes de croissance (taille)</div>
+              <div class="croiss-bar">
+                <div class="cb-zone cb-z3"></div><div class="cb-zone cb-z10"></div><div class="cb-zone cb-z25"></div>
+                <div class="cb-zone cb-normal"></div>
+                <div class="cb-zone cb-z75"></div><div class="cb-zone cb-z90"></div><div class="cb-zone cb-z97"></div>
+                <div class="cb-cursor" [style.left]="croissResult['taillePct'] + '%'">▼</div>
+              </div>
+              <div class="cb-labels"><span>P3</span><span>P10</span><span>P25</span><span>P50</span><span>P75</span><span>P90</span><span>P97</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 5 : IMMUNOSUPPRESSEUR ──────────────── -->
+        <div *ngIf="nephroTab==='immuno'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-violet">💊</div>
+            <div>
+              <div class="nth-title">Calculateur de dose — Immunosuppresseur post-greffe</div>
+              <div class="nth-sub">Tacrolimus · Ciclosporine · Ajustement selon phase, poids et taux résiduel C0</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">Molécule</label><select class="nm-select" [(ngModel)]="immunoMolecule" (ngModelChange)="calcImmuno()"><option value="tacrolimus">Tacrolimus</option><option value="ciclosporine">Ciclosporine</option></select></div>
+            <div class="nm-field"><label class="nm-label">Phase</label><select class="nm-select" [(ngModel)]="immunoPhase" (ngModelChange)="calcImmuno()"><option value="precoce">Précoce (0–3 mois)</option><option value="intermediaire">Intermédiaire (3–12 mois)</option><option value="entretien">Entretien (&gt;12 mois)</option></select></div>
+            <div class="nm-field"><label class="nm-label">⚖️ Poids (kg)</label><input type="number" class="nm-input" [(ngModel)]="immunoPoids" (ngModelChange)="calcImmuno()" placeholder="ex: 30"></div>
+            <div class="nm-field"><label class="nm-label">🎂 Âge (années)</label><input type="number" class="nm-input" [(ngModel)]="immunoAge" (ngModelChange)="calcImmuno()" placeholder="ex: 10"></div>
+            <div class="nm-field"><label class="nm-label">🧪 Créatinine (mg/dL)</label><input type="number" class="nm-input" [(ngModel)]="immunoCreat" (ngModelChange)="calcImmuno()" step="0.01" placeholder="ex: 0.9"></div>
+            <div class="nm-field"><label class="nm-label">C0 taux résiduel</label><input type="number" class="nm-input" [(ngModel)]="immunoC0" (ngModelChange)="calcImmuno()" step="0.1" placeholder="ex: 7.5"><div class="nm-hint">ng/mL (Tacrolimus) ou ng/mL (Ciclosporine)</div></div>
+          </div>
+          <div *ngIf="!immunoResult" class="nm-placeholder"><span>💊</span> Renseignez poids et âge pour calculer la dose</div>
+            <div *ngIf="immunoResult" class="immuno-result">
+            <div class="ir-dose-cards">
+              <div class="ir-dose-card" [ngClass]="'irdc-' + immunoResult['c0Status']">
+                <div class="irdc-lbl">Dose/kg/j</div>
+                <div class="irdc-val">{{ immunoResult['doseCalculee'] | number:'1.2-2' }}<span class="irdc-unit"> mg</span></div>
+              </div>
+              <div class="ir-dose-card">
+                <div class="irdc-lbl">Dose totale/j</div>
+                <div class="irdc-val">{{ immunoResult['doseTotale'] | number:'1.1-1' }}<span class="irdc-unit"> mg</span></div>
+              </div>
+              <div class="ir-dose-card" [ngClass]="'irdc-' + immunoResult['c0Status']">
+                <div class="irdc-lbl">Cible C0</div>
+                <div class="irdc-val" style="font-size:1rem">{{ immunoResult['c0Cible'] }}</div>
+                <div class="irdc-status">{{ immunoResult['c0Icon'] }}</div>
+              </div>
+            </div>
+            <div class="ir-ajustement" [ngClass]="'ira-' + immunoResult['ajustement']">
+              <div class="ira-icon">{{ immunoResult['c0Icon'] }}</div>
+              <div><div class="ira-title">{{ immunoResult['ajustementLabel'] }}</div><div class="ira-text">{{ immunoResult['recommandation'] }}</div></div>
+            </div>
+            <div *ngIf="immunoResult['nefrotoxique']" class="ir-warning">⚠️ Risque néphrotoxique : créatinine élevée + taux supra-thérapeutique — surveillance renforcée</div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 6 : PCR URINAIRE ────────────────────── -->
+        <div *ngIf="nephroTab==='pcr'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-teal">🧪</div>
+            <div>
+              <div class="nth-title">Rapport Protéines/Créatinine urinaire (PCR)</div>
+              <div class="nth-sub">Substitut à la protéinurie 24h · Seuil greffe &gt; 200 mg/mmol</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">Protéines urinaires (mg/L)</label><input type="number" class="nm-input" [(ngModel)]="pcrProteines" (ngModelChange)="calcPcr()" placeholder="ex: 150"></div>
+            <div class="nm-field"><label class="nm-label">Créatinine urinaire (mmol/L)</label><input type="number" class="nm-input" [(ngModel)]="pcrCreatinine" (ngModelChange)="calcPcr()" step="0.1" placeholder="ex: 8.5"></div>
+          </div>
+          <div *ngIf="pcrResult === null" class="nm-placeholder"><span>🧪</span> Entrez protéines et créatinine urinaires pour calculer le PCR</div>
+          <div *ngIf="pcrResult !== null" class="pcr-result">
+            <div class="pcr-main-row">
+              <div class="pcr-big-val" [ngClass]="'pcrbv-' + pcrLevel">{{ pcrResult | number:'1.0-1' }}</div>
+              <div class="pcr-big-unit">mg/mmol</div>
+            </div>
+            <div class="pcr-gauge-wrap">
+              <div class="pcr-gauge">
+                <div class="pcr-gauge-normal"></div>
+                <div class="pcr-gauge-limit"></div>
+                <div class="pcr-gauge-crit"></div>
+                <div class="pcr-gauge-cursor" [style.left]="pcrBarPct + '%'">▼</div>
+              </div>
+              <div class="pcr-gauge-labels"><span>0</span><span>20</span><span>200</span><span>500+</span></div>
+            </div>
+            <div class="pcr-verdict" [ngClass]="'pcrv-' + pcrLevel">
+              <span class="pcrv-badge">{{ pcrLevelIcon }} {{ pcrLevelLabel }}</span>
+              <span class="pcrv-text">{{ pcrInterpretation }}</span>
+            </div>
+            <div class="pcr-equiv">
+              <div class="pcr-equiv-title">Équivalences cliniques</div>
+              <div class="pcr-equiv-grid">
+                <div class="peg-item"><span class="peg-lbl">Protéinurie ≈ 24h</span><span class="peg-val" [class.peg-alert]="pcrProteinurie24h > 300">{{ pcrProteinurie24h | number:'1.0-0' }} mg/24h</span></div>
+                <div class="peg-item"><span class="peg-lbl">Seuil post-greffe</span><span class="peg-val">&gt; 200 mg/mmol</span></div>
+                <div class="peg-item"><span class="peg-lbl">Néphrotique</span><span class="peg-val">&gt; 350 mg/mmol</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 7 : BILAN HYDRIQUE ──────────────────── -->
+        <div *ngIf="nephroTab==='hydrique'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-blue">💧</div>
+            <div>
+              <div class="nth-title">Bilan hydrique pédiatrique — Formule Holliday-Segar</div>
+              <div class="nth-sub">Calcul des besoins en eau · Correction fièvre · Détection oligurie/polyurie</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">⚖️ Poids (kg)</label><input type="number" class="nm-input" [(ngModel)]="hydPoids" (ngModelChange)="calcHydrique()" step="0.1" placeholder="ex: 25"></div>
+            <div class="nm-field"><label class="nm-label">🌡️ Fièvre (°C)</label><input type="number" class="nm-input" [(ngModel)]="hydFievre" (ngModelChange)="calcHydrique()" step="0.1" placeholder="ex: 38.5"></div>
+            <div class="nm-field"><label class="nm-label">💧 Diurèse (mL/24h)</label><input type="number" class="nm-input" [(ngModel)]="hydDiurese" (ngModelChange)="calcHydrique()" placeholder="ex: 800"></div>
+            <div class="nm-field"><label class="nm-label">🚿 Apports (mL/24h)</label><input type="number" class="nm-input" [(ngModel)]="hydApports" (ngModelChange)="calcHydrique()" placeholder="ex: 1200"></div>
+          </div>
+          <div *ngIf="!hydResult" class="nm-placeholder"><span>💧</span> Renseignez le poids pour calculer les besoins hydriques</div>
+          <div *ngIf="hydResult" class="hydrique-result">
+            <div class="hyd-cards">
+              <div class="hyd-card hyd-card-besoin"><div class="hc-icon">💧</div><div class="hc-val">{{ hydResult['besoinBase'] | number:'1.0-0' }}</div><div class="hc-unit">mL/24h</div><div class="hc-lbl">Besoin de base</div></div>
+              <div class="hyd-card" [ngClass]="hydResult['majFievre'] > 0 ? 'hyd-card-ajuste' : 'hyd-card-besoin'"><div class="hc-icon">🌡️</div><div class="hc-val">{{ hydResult['besoinAjuste'] | number:'1.0-0' }}</div><div class="hc-unit">mL/24h</div><div class="hc-lbl">Besoin ajusté</div><div class="hc-sub" *ngIf="hydResult['majFievre'] > 0">+{{ hydResult['majFievre'] | number:'1.0-0' }} mL fièvre</div></div>
+              <div class="hyd-card" [ngClass]="hydResult['bilanColor']==='rouge'?'hyd-card-rouge':hydResult['bilanColor']==='orange'?'hyd-card-ajuste':'hyd-card-normal'"><div class="hc-icon">⚖️</div><div class="hc-val">{{ hydResult['bilan'] > 0 ? '+' : '' }}{{ hydResult['bilan'] | number:'1.0-0' }}</div><div class="hc-unit">mL</div><div class="hc-lbl">Bilan hydrique</div><div class="hc-sub">{{ hydResult['bilanLabel'] }}</div></div>
+            </div>
+            <div *ngIf="hydResult['diureseAlerte']" class="hyd-diurese-alert" [ngClass]="'hda-' + hydResult['diureseNiveau']">
+              <div class="hda-icon">{{ hydResult['diureseIcon'] }}</div>
+              <div><div class="hda-title">{{ hydResult['diureseAlerteTitre'] }}</div><div class="hda-text">{{ hydResult['diureseAlerteTexte'] }}</div></div>
+            </div>
+            <div *ngIf="hydDiurese" class="hyd-compare">
+              <div class="hydc-row"><span class="hydc-lbl">Diurèse actuelle</span><div class="hydc-bar-wrap"><div class="hydc-bar"><div class="hydc-fill hydf-diurese" [style.width]="(hydResult['diuresePct'])+'%'"></div></div></div><span class="hydc-val">{{ hydDiurese }} mL</span></div>
+              <div class="hydc-row"><span class="hydc-lbl">Besoin ajusté</span><div class="hydc-bar-wrap"><div class="hydc-bar"><div class="hydc-fill hydf-besoin" style="width:100%"></div></div></div><span class="hydc-val">{{ hydResult['besoinAjuste'] | number:'1.0-0' }} mL</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── ONGLET 8 : SCORE DE FRAGILITÉ ─────────────── -->
+        <div *ngIf="nephroTab==='fragilite'" class="nm-tab-content">
+          <div class="nm-tool-header">
+            <div class="nth-icon nth-orange">⚡</div>
+            <div>
+              <div class="nth-title">Score de fragilité post-greffe rénale pédiatrique</div>
+              <div class="nth-sub">6 critères pondérés · Score 0–100 · Pronostic 12 mois</div>
+            </div>
+          </div>
+          <div class="nm-form-grid">
+            <div class="nm-field"><label class="nm-label">🎂 Âge (années)</label><input type="number" class="nm-input" [(ngModel)]="fragiliteAge" (ngModelChange)="calcFragilite()" placeholder="ex: 8"></div>
+            <div class="nm-field"><label class="nm-label">📐 IMC (kg/m²)</label><input type="number" class="nm-input" [(ngModel)]="fragiliteImc" (ngModelChange)="calcFragilite()" step="0.1" placeholder="ex: 16.5"></div>
+            <div class="nm-field"><label class="nm-label">🧮 DFG estimé (mL/min)</label><input type="number" class="nm-input" [(ngModel)]="fragiliteDfg" (ngModelChange)="calcFragilite()" placeholder="ex: 45"></div>
+            <div class="nm-field"><label class="nm-label">📅 Ancienneté greffon (mois)</label><input type="number" class="nm-input" [(ngModel)]="fragiliteAnciennete" (ngModelChange)="calcFragilite()" placeholder="ex: 6"></div>
+            <div class="nm-field"><label class="nm-label">🚨 Épisodes de rejet</label><input type="number" class="nm-input" [(ngModel)]="fragiliteRejets" (ngModelChange)="calcFragilite()" placeholder="ex: 1" min="0"></div>
+            <div class="nm-field"><label class="nm-label">💊 Observance</label><select class="nm-select" [(ngModel)]="fragiliteObservance" (ngModelChange)="calcFragilite()"><option value="bonne">Bonne</option><option value="partielle">Partielle</option><option value="mauvaise">Mauvaise</option></select></div>
+          </div>
+          <div *ngIf="!fragiliteResult" class="nm-placeholder"><span>⚡</span> Renseignez au moins 2 paramètres pour calculer le score de fragilité</div>
+          <div *ngIf="fragiliteResult" class="fragilite-result">
+            <div class="frag-score-wrap" [ngClass]="'fsw-' + fragiliteResult['niveau']">
+              <div class="frag-score-ring">
+                <svg class="frag-svg" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="#e5e7eb" stroke-width="12"/>
+                  <circle cx="60" cy="60" r="52" fill="none" [attr.stroke]="fragiliteResult['color']" stroke-width="12"
+                          stroke-linecap="round" stroke-dasharray="327" [attr.stroke-dashoffset]="327 - (fragiliteResult['score']/100)*245"
+                          transform="rotate(-90 60 60)"/>
+                </svg>
+                <div class="frag-score-center"><span class="fsc-num">{{ fragiliteResult['score'] }}</span><span class="fsc-max">/100</span></div>
+              </div>
+              <div class="frag-score-info">
+                <div class="fsi-level" [ngClass]="'fsil-' + fragiliteResult['niveau']">{{ fragiliteResult['niveauLabel'] }}</div>
+                <div class="fsi-sub">Score de fragilité composite</div>
+                <div class="fsi-pronostic">{{ fragiliteResult['pronostic'] }}</div>
+              </div>
+            </div>
+            <div class="frag-criteria-grid">
+              <div *ngFor="let c of fragiliteResult['criteres']" class="frag-crit" [ngClass]="'fc-' + c.niveau">
+                <div class="fc-icon">{{ c.icon }}</div>
+                <div class="fc-name">{{ c.nom }}</div>
+                <div class="fc-val">{{ c.valeur }}</div>
+                <div *ngIf="c.pts > 0" class="fc-pts">+{{ c.pts }} pts</div>
+              </div>
+            </div>
+            <div class="frag-recomms">
+              <div class="fr-title">Recommandations</div>
+              <div *ngFor="let r of fragiliteResult['recommandations']" class="fr-item">
+                <span class="fr-bullet" [ngClass]="'frb-' + fragiliteResult['niveau']">▸</span>
+                <span>{{ r }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /nm-body -->
+    </div><!-- /nephro-modal -->
+  </div><!-- /nephro-overlay -->
+
+  <div class="modal-overlay" *ngIf="showDeleteModal" (click)="cancelDelete()">
+    <div class="modal-confirm" (click)="$event.stopPropagation()">
+      <h3>Confirmer la suppression</h3>
+      <p>Supprimer #{{ itemToDelete }} ?</p>
+      <div class="modal-confirm-actions">
+        <button type="button" class="btn-cancel" (click)="cancelDelete()">Annuler</button>
+        <button type="button" class="btn-confirm-delete" (click)="confirmDelete()">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast toast-success" *ngIf="toastSuccess">✓ {{ toastMsg }}</div>
+  <div class="toast toast-error" *ngIf="toastError">✗ {{ toastMsg }}</div>
+</div>

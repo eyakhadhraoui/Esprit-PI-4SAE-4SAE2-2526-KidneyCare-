@@ -1,0 +1,89 @@
+<nav class="ar-nav">
+  <div class="ar-logo">🫘 KidneyCare</div>
+  <div class="ar-nav-links">
+    <a routerLink="/back/dashboard">Dashboard</a>
+    <a routerLink="/back/consultations">Consultations</a>
+    <a routerLink="/back/rapports/new" class="active">Rapports</a>
+    <a routerLink="/back/rendezvous/new">Rendez-vous</a>
+  </div>
+</nav>
+
+<div class="ar-page">
+  <div class="ar-breadcrumb">
+    <a routerLink="/back">Accueil</a>
+    <span>›</span>
+    <a routerLink="/back/consultations">Rapports</a>
+    <span>›</span>
+    <span>Nouveau rapport</span>
+  </div>
+
+  <header class="ar-header">
+    <h1>📄 Nouveau Rapport</h1>
+    <p class="ar-sub">Créer un rapport médical post-greffe</p>
+  </header>
+
+  <div class="ar-progress">
+    <div class="ar-progress-head">
+      <span>Progression du formulaire</span>
+      <span [class.ar-ready]="formProgress === 100">
+        {{ formProgress === 100 ? '✅ Prêt à enregistrer' : '⚠ Champs obligatoires manquants' }}
+      </span>
+    </div>
+    <div class="ar-progress-bar"><div class="ar-progress-fill" [style.width.%]="formProgress"></div></div>
+    <div class="ar-steps">
+      <span [class.done]="rapport.dateRapport">📅 Date</span>
+      <span [class.done]="selectedConsultationId">🩺 Consultation</span>
+      <span [class.done]="rapport.contenu.length >= 20">📝 Contenu</span>
+    </div>
+  </div>
+
+  <form (ngSubmit)="saveRapport()" #rapportForm="ngForm" novalidate>
+    <div class="ar-card">
+      <h2>📋 Informations générales</h2>
+      <div class="ar-grid">
+        <div class="ar-field">
+          <label>Date du rapport <span class="req">*</span></label>
+          <input type="date" [(ngModel)]="rapport.dateRapport" name="dateRapport" required #dateRef="ngModel" [max]="today"
+            [class.err]="dateRef.touched && dateRef.invalid" (change)="calcProgress()" />
+        </div>
+        <div class="ar-field">
+          <label>Consultation associée <span class="req">*</span></label>
+          <select [(ngModel)]="selectedConsultationId" name="consultationId" required #consultRef="ngModel"
+            [class.err]="consultRef.touched && consultRef.invalid" (change)="onConsultationChange()">
+            <option [ngValue]="null">— Choisir une consultation —</option>
+            <option *ngFor="let c of consultationsList" [ngValue]="c.idConsultation">
+              {{ c.dateConsultation | date:'dd/MM/yyyy' }} — {{ c.diagnostic | slice:0:45 }}
+            </option>
+          </select>
+        </div>
+      </div>
+      <div class="ar-preview" *ngIf="getSelectedConsultation() as c">
+        <strong>Aperçu</strong>
+        <p>{{ c.dateConsultation | date:'dd MMMM yyyy' }} — {{ c.diagnostic }}</p>
+      </div>
+    </div>
+
+    <div class="ar-card">
+      <h2>📝 Contenu & recommandations</h2>
+      <div class="ar-field">
+        <label>Contenu <span class="req">*</span> <small>(min. 20 caractères)</small></label>
+        <textarea [(ngModel)]="rapport.contenu" name="contenu" required minlength="20" maxlength="2000" rows="7"
+          #contenuRef="ngModel" (input)="calcProgress()" [class.err]="contenuRef.touched && contenuRef.invalid"></textarea>
+        <small>{{ rapport.contenu.length }} / 2000</small>
+      </div>
+      <div class="ar-field">
+        <label>Recommandations <small>(optionnel)</small></label>
+        <textarea [(ngModel)]="rapport.recommendations" name="recommendations" maxlength="1000" rows="4"></textarea>
+      </div>
+    </div>
+
+    <div class="ar-actions">
+      <button type="button" class="ar-btn-secondary" (click)="resetForm()">Réinitialiser</button>
+      <button type="submit" class="ar-btn-primary" [disabled]="rapportForm.invalid || isLoading">
+        {{ isLoading ? 'Enregistrement…' : 'Enregistrer le rapport' }}
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="ar-toast" *ngIf="toastVisible" [ngClass]="toastType">{{ toastMessage }}</div>

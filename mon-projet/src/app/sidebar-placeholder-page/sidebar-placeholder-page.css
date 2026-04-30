@@ -1,0 +1,14 @@
+.sidebar-placeholder-wrap {
+  padding: 1.5rem 2rem;
+  max-width: 720px;
+}
+
+.sidebar-placeholder-wrap h1 {
+  font-size: 1.5rem;
+  color: #1e293b;
+  margin: 0 0 1rem;
+}
+
+.sidebar-placeholder-wrap p {
+  color: #64748b;
+}

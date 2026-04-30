@@ -1,0 +1,58 @@
+.lab-evolution {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1rem 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.lab-evolution-heading {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.lab-evolution-chart-wrap {
+  margin-bottom: 1.25rem;
+}
+
+.lab-evolution-chart-wrap:last-child {
+  margin-bottom: 0.25rem;
+}
+
+.lab-evolution-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.lab-evolution-chart-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.lab-evolution-chart-date {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.lab-evolution-canvas-box {
+  position: relative;
+  height: 280px;
+  width: 100%;
+}
+
+.lab-evolution-canvas-box--nfs {
+  height: 300px;
+}
+
+.lab-evolution-empty {
+  font-size: 0.85rem;
+  color: #64748b;
+  padding: 0.5rem 0 0.75rem;
+}

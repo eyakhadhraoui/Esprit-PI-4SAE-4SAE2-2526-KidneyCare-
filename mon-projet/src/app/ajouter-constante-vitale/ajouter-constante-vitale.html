@@ -1,0 +1,191 @@
+<div class="content">
+  <div class="breadcrumb">
+    <a routerLink="/back">Accueil</a>
+    <span class="bc-sep">›</span>
+    <a routerLink="/back/parametres-vitaux">Paramètres Vitaux</a>
+    <span class="bc-sep">›</span>
+    <span>Nouvelle Constante Vitale</span>
+  </div>
+
+  <div class="page-header">
+    <h1>🔬 Nouvelle Constante Vitale</h1>
+    <p class="subtitle">Définir un référentiel de valeurs normales pour un paramètre clinique</p>
+  </div>
+
+  <div class="progress-card">
+    <div class="progress-info">
+      <span class="progress-title">Progression du formulaire</span>
+      <span class="progress-status" [class.ready]="formProgress === 100">
+        {{ formProgress === 100 ? '✅ Prêt à enregistrer' : '⚠ Champs obligatoires manquants' }}
+      </span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="formProgress"></div>
+    </div>
+    <div class="progress-steps">
+      <span [class.step-done]="constante.nomParametre.trim()">🏷️ Nom</span>
+      <span [class.step-done]="constante.unite.trim()">📏 Unité</span>
+      <span [class.step-done]="constante.valeurMinNormale !== null && constante.valeurMinNormale !== undefined">📉 Min</span>
+      <span [class.step-done]="constante.valeurMaxNormale !== null && constante.valeurMaxNormale !== undefined">📈 Max</span>
+    </div>
+  </div>
+
+  <div class="alert-error-bar" *ngIf="errorMsg">
+    <span>⚠️ {{ errorMsg }}</span>
+    <button type="button" (click)="errorMsg = ''">✕</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-indigo">📊</div>
+      <div>
+        <h3>Indicateur Vital associé</h3>
+        <p class="card-desc">Lier cette constante à un biomarqueur rénal <span class="optional-tag">Optionnel</span></p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Sélectionner un Indicateur Vital</label>
+        <div class="input-wrapper">
+          <span class="input-icon">📊</span>
+          <select
+            class="form-control with-icon"
+            [(ngModel)]="selectedIndicateurId"
+            (ngModelChange)="onIndicateurChange()"
+            [class.ctrl-valid]="selectedIndicateurId"
+          >
+            <option [ngValue]="null">— Aucun indicateur (optionnel) —</option>
+            <option *ngFor="let ind of indicateursList" [ngValue]="ind.idIndicateurVital">
+              {{ ind.nomIndicateur }} — {{ ind.unite }}
+            </option>
+          </select>
+        </div>
+        <div class="loading-chips" *ngIf="loadingIndicateurs">⏳ Chargement des indicateurs…</div>
+        <div class="no-suggestions" *ngIf="!loadingIndicateurs && indicateursList.length === 0">Aucun indicateur actif en base</div>
+      </div>
+      <div class="indicateur-preview" *ngIf="getSelectedIndicateur(); let ind">
+        <div class="ind-preview-header">
+          <span class="ind-preview-icon">📊</span>
+          <div>
+            <strong>{{ ind.nomIndicateur }}</strong>
+            <span class="ind-preview-unite">{{ ind.unite }}</span>
+          </div>
+          <span class="badge-actif">✅ Actif</span>
+        </div>
+        <p class="ind-hint">💡 L'unité <strong>{{ ind.unite }}</strong> a été auto-remplie ci-dessous</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-teal">🏷️</div>
+      <div>
+        <h3>Identité de la Constante</h3>
+        <p class="card-desc">Nom clinique et unité de mesure du paramètre</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-group" [class.group-error]="submitted && !constante.nomParametre.trim()">
+        <label class="form-label">Nom du paramètre <span class="req">*</span></label>
+        <input
+          type="text"
+          class="form-control"
+          [(ngModel)]="constante.nomParametre"
+          (ngModelChange)="calcProgress()"
+          maxlength="100"
+        />
+      </div>
+      <div class="form-group mt-18" [class.group-error]="submitted && !constante.unite.trim()">
+        <label class="form-label">Unité de mesure <span class="req">*</span></label>
+        <input
+          type="text"
+          class="form-control"
+          [(ngModel)]="constante.unite"
+          (ngModelChange)="calcProgress()"
+          maxlength="30"
+        />
+        <div class="suggestions-row">
+          <span class="suggestions-label">Suggestions :</span>
+          <span class="chip" *ngFor="let u of unitesSuggestions" (click)="selectUnite(u)">{{ u }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-indigo">📊</div>
+      <div>
+        <h3>Valeurs Normales de Référence</h3>
+        <p class="card-desc">Plage normale <span class="req">*</span></p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="two-cols">
+        <div class="form-group">
+          <label class="form-label">Valeur minimale <span class="req">*</span></label>
+          <input
+            type="number"
+            class="form-control"
+            [(ngModel)]="constante.valeurMinNormale"
+            (ngModelChange)="calcProgress()"
+            step="0.01"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valeur maximale <span class="req">*</span></label>
+          <input
+            type="number"
+            class="form-control"
+            [(ngModel)]="constante.valeurMaxNormale"
+            (ngModelChange)="calcProgress()"
+            step="0.01"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon bg-orange">⚖️</div>
+      <div>
+        <h3>Gabarit Patient</h3>
+        <p class="card-desc"><span class="optional-tag">Optionnel</span></p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="two-cols">
+        <div class="form-group">
+          <label class="form-label">Poids min (kg)</label>
+          <input type="number" class="form-control" [(ngModel)]="constante.poidsMin" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Poids max (kg)</label>
+          <input type="number" class="form-control" [(ngModel)]="constante.poidsMax" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Taille min (cm)</label>
+          <input type="number" class="form-control" [(ngModel)]="constante.tailleMin" step="0.5" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Taille max (cm)</label>
+          <input type="number" class="form-control" [(ngModel)]="constante.tailleMax" step="0.5" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="button" class="btn-secondary" (click)="goBack()" [disabled]="loading">← Annuler</button>
+    <button type="button" class="btn-primary" (click)="submit()" [disabled]="loading">
+      <span *ngIf="loading">Enregistrement…</span>
+      <span *ngIf="!loading">💾 Enregistrer la constante</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast-wrapper" [class.toast-visible]="toastSuccess">
+  <div class="toast toast-success">✓ Constante vitale ajoutée avec succès !</div>
+</div>

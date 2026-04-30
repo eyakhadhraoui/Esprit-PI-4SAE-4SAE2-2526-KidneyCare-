@@ -1,0 +1,228 @@
+
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <div class="users-container">
+            <!-- HEADER AVEC ACTIONS -->
+            <div class="users-header">
+                <div class="header-top">
+                    <div class="tabs-container">
+                        <span class="header-title">👥 Patients</span>
+                        <span class="tab-badge">{{ patients.length }}</span>
+                    </div>
+
+                    <div class="header-actions">
+                        <button class="btn-icon" (click)="toggleViewMode()" title="Change display">
+                          <span *ngIf="viewMode === 'grid'">📋</span>
+                          <span *ngIf="viewMode === 'list'">▦</span>
+                        </button>
+                        
+                        <button class="btn-primary" (click)="openCreateModal()">
+                          <span class="btn-icon-inline">➕</span>
+                          Add Patient
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SEARCH & FILTERS -->
+                <div class="filters-container">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input 
+                          type="text" 
+                          placeholder="Search by name, email..." 
+                          [(ngModel)]="searchTerm"
+                          class="search-input">
+                    </div>
+
+                    <select [(ngModel)]="statusFilter" class="filter-select">
+                        <option value="all">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="pending">Pending</option>
+                    </select>
+
+                    <div class="results-count">
+                        {{ filteredUsers.length }} result{{ filteredUsers.length > 1 ? 's' : '' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOADING -->
+            <div *ngIf="loadingPatients" class="users-loading">
+                Chargement des patients...
+            </div>
+
+            <!-- AFFICHAGE GRILLE (CARDS) -->
+            <div class="users-grid" *ngIf="viewMode === 'grid' && !loadingPatients">
+                <div 
+                  *ngFor="let user of filteredUsers" 
+                  class="user-card patient-card">
+                  
+                  <div class="card-header">
+                    <div class="user-avatar" [style.background]="'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'">
+                      {{ getInitials(user.firstName, user.lastName) }}
+                    </div>
+                    
+                    <div class="card-actions">
+                      <button class="btn-icon-small" (click)="openEditModal(user)" title="Modifier">✏️</button>
+                      <button class="btn-icon-small" (click)="deleteUser(user.id)" title="Supprimer">🗑️</button>
+                    </div>
+                  </div>
+
+                  <div class="card-body">
+                    <h3 class="user-name">{{ user.firstName }} {{ user.lastName }}</h3>
+                    
+                    <!-- INFO PATIENT -->
+                    <div class="user-meta">
+                      
+                      <div class="meta-item">
+                        <span class="meta-icon">🩺</span>
+                        <span class="meta-text">Diagnostic: {{ user.diagnostic || '—' }}</span>
+                      </div>
+                      <div class="meta-item">
+                        <span class="meta-icon">📧</span>
+                        <span class="meta-text">{{ user.email || '—' }}</span>
+                      </div>
+                     
+                    </div>
+
+                  <div class="card-footer">
+                    <div class="status-badge" [style.background]="getStatusColor(user.status) + '20'" 
+                         [style.color]="getStatusColor(user.status)">
+                      {{ getStatusLabel(user.status) }}
+                    </div>
+                    
+                    <button class="btn-toggle" (click)="toggleStatus(user)">
+                      <span *ngIf="user.status === 'active'">Désactiver</span>
+                      <span *ngIf="user.status !== 'active'">Activer</span>
+                    </button>
+                  </div>
+                </div>
+            </div>
+
+            <!-- AFFICHAGE LISTE (TABLE) -->
+            <div class="users-list" *ngIf="viewMode !== 'grid' && !loadingPatients">
+                <table class="users-table">
+                  <thead>
+                    <tr>
+                      <th>Patient</th>
+                      
+                      <th>Diagnostic</th>
+                      <th>Email</th>
+                     
+                      <th>Statut</th>
+                      <th>Date création</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let user of filteredUsers" class="table-row">
+                      <td>
+                        <div class="user-cell">
+                          <div class="user-avatar-small">
+                            {{ getInitials(user.firstName, user.lastName) }}
+                          </div>
+                          <div>
+                            <div class="user-name-small">{{ user.firstName }} {{ user.lastName }}</div>
+                            <div class="user-email-small">{{ user.email }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      
+                     
+                      <td>{{ user.diagnostic || '—' }}</td>
+                      
+                      <td>{{ user.email || '—' }}</td>
+                    
+                      
+                      <td>
+                        <div class="status-badge-table" 
+                             [style.background]="getStatusColor(user.status) + '20'" 
+                             [style.color]="getStatusColor(user.status)">
+                          {{ getStatusLabel(user.status) }}
+                        </div>
+                      </td>
+                      
+                      <td>{{ user.createdAt | date:'dd/MM/yyyy' }}</td>
+                      
+                      <td>
+                        <div class="table-actions">
+                          <button class="btn-icon-small" (click)="openEditModal(user)" title="Modifier">✏️</button>
+                          <button class="btn-icon-small" (click)="toggleStatus(user)" title="Changer statut">
+                            <span *ngIf="user.status === 'active'">🔴</span>
+                            <span *ngIf="user.status !== 'active'">🟢</span>
+                          </button>
+                          <button class="btn-icon-small" (click)="deleteUser(user.id)" title="Supprimer">🗑️</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+            </div>
+
+            <!-- MESSAGE SI AUCUN RÉSULTAT -->
+            <div *ngIf="filteredUsers.length === 0 && !loadingPatients" class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <h3>Aucun résultat</h3>
+                <p>Aucun patient ne correspond à votre recherche.</p>
+            </div>
+        </div>
+    </div>
+
+
+<!-- MODAL CREATE/EDIT -->
+<div class="modal-overlay" *ngIf="isModalOpen" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isEditing ? 'Modifier' : 'Ajouter' }} Patient</h2>
+      <button class="btn-close" (click)="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prénom *</label>
+          <input type="text" [(ngModel)]="currentUser.firstName" placeholder="Prénom" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label>Nom *</label>
+          <input type="text" [(ngModel)]="currentUser.lastName" placeholder="Nom" class="form-input">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" [(ngModel)]="currentUser.email" placeholder="email@example.com" class="form-input">
+        </div>
+        
+        <div class="form-group">
+          <label>Téléphone *</label>
+          <input type="tel" [(ngModel)]="currentUser.phone" placeholder="+216 XX XXX XXX" class="form-input">
+        </div>
+      </div>
+
+      <!-- CHAMPS PATIENT -->
+      <div class="form-row">
+          <div class="form-group">
+            <label>Âge *</label>
+            <input type="number" [(ngModel)]="currentUser.age" placeholder="Âge" class="form-input" min="0" max="150">
+          </div>
+          
+          <div class="form-group">
+            <label>Date de Greffe</label>
+            <input type="date" [(ngModel)]="currentUser.greftDate" class="form-input">
+          </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeModal()">Annuler</button>
+      <button class="btn-primary" (click)="saveUser()">
+        {{ isEditing ? 'Mettre à jour' : 'Créer' }}
+      </button>
+    </div>
+  </div>
+</div>

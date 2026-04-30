@@ -1,0 +1,246 @@
+.sidebar {
+    position: fixed;
+    top: 73px;
+    left: 0;
+    width: 240px;
+    height: calc(100vh - 73px);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    padding: 24px 16px;
+    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.08);
+    overflow-y: auto;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 20px;
+}
+
+.sidebar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.sidebar-subtitle {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+    font-weight: 500;
+}
+
+.sidebar-menu {
+    flex: 1;
+}
+
+/* Accordéon (ex. Nutrition) */
+.sidebar-group {
+    margin-bottom: 8px;
+}
+
+.sidebar-group-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    margin-bottom: 4px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    color: #334155;
+    font-size: 14px;
+    border: 2px solid transparent;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+}
+
+.sidebar-group-header:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.sidebar-group-caret {
+    margin-left: auto;
+    font-size: 10px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.sidebar-sublist {
+    list-style: none;
+    margin: 0 0 8px 0;
+    padding: 0 0 0 8px;
+}
+
+.sidebar-sublist .sidebar-subitem {
+    padding-left: 12px;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.sidebar-sublist .sidebar-subitem .sidebar-item-icon {
+    font-size: 18px;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #475569;
+    font-size: 14px;
+    border: 2px solid transparent;
+    text-decoration: none;
+}
+a.sidebar-item { color: #475569; }
+button.sidebar-item { background: none; border: none; font: inherit; text-align: left; width: 100%; }
+
+.sidebar-item:hover {
+    background: #f1f5f9;
+    color: #334155;
+    transform: translateX(4px);
+}
+
+.sidebar-item.active {
+    background: linear-gradient(135deg, #667eea 0%, #0d9488 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    border-color: #667eea;
+}
+
+/* Bloc vitaux : texte bleu + barre verticale à droite (maquette) */
+a.sidebar-item.sidebar-item-vitals {
+    color: #334155;
+}
+
+a.sidebar-item.sidebar-item-vitals.active-vitals {
+    background: #eff6ff;
+    color: #2563eb;
+    font-weight: 600;
+    border-color: transparent;
+    box-shadow: none;
+    border-right: 4px solid #2563eb;
+    border-radius: 12px 0 0 12px;
+    transform: none;
+    padding-right: 12px;
+}
+
+a.sidebar-item.sidebar-item-vitals:hover:not(.active-vitals) {
+    background: #f8fafc;
+    color: #1e40af;
+    transform: translateX(2px);
+}
+
+.sidebar-item-primary {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);
+    color: #6366f1;
+    font-weight: 600;
+    border-color: #c7d2fe;
+}
+
+.sidebar-item-primary:hover {
+    background: linear-gradient(135deg, #c7d2fe 0%, #ddd6fe 100%);
+    color: #4f46e5;
+}
+
+.sidebar-item-primary.active {
+    background: linear-gradient(135deg, #667eea 0%, #0d9488 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+/* Carte « Infection Dashboard » — dégradé bleu → sarcelle, bordure claire, texte sur 2 lignes */
+a.sidebar-item.sidebar-item-infection-dashboard {
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-radius: 14px;
+    border: 1.5px solid rgba(191, 219, 254, 0.95);
+    background: linear-gradient(135deg, #1f8dd6 0%, #0ea5e9 42%, #0d9488 100%);
+    color: #ffffff !important;
+    font-weight: 800;
+    box-shadow: 0 4px 16px rgba(31, 141, 214, 0.38);
+    transform: none;
+}
+
+a.sidebar-item.sidebar-item-infection-dashboard:hover {
+    background: linear-gradient(135deg, #2498e0 0%, #12b4f0 42%, #0f9d8f 100%);
+    color: #ffffff !important;
+    transform: translateX(3px);
+    box-shadow: 0 6px 20px rgba(13, 148, 136, 0.42);
+}
+
+a.sidebar-item.sidebar-item-infection-dashboard.sidebar-infection-dashboard-active {
+    border-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 6px 22px rgba(13, 148, 136, 0.5), 0 0 0 3px rgba(191, 219, 254, 0.45);
+}
+
+.sidebar-infection-icon {
+    font-size: 26px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.sidebar-infection-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.15;
+}
+
+.sidebar-infection-line1,
+.sidebar-infection-line2 {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.sidebar-infection-line2 {
+    opacity: 0.9;
+    font-weight: 700;
+}
+
+.sidebar-item-icon {
+    font-size: 20px;
+    width: 24px;
+    text-align: center;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 2px solid #e2e8f0;
+}
+
+.sidebar-item-logout {
+    color: #dc2626;
+    border-color: #fee2e2;
+}
+
+.sidebar-item-logout:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+@media (max-width: 992px) {
+    .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        top: 0;
+    }
+}

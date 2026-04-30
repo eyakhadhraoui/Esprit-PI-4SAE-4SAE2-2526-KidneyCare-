@@ -1,0 +1,1132 @@
+<div class="np-wrapper">
+
+  <!-- ══ LOADING ══════════════════════════════════════════════════════════ -->
+  <div *ngIf="loading" class="np-loading">
+    <div class="np-spinner"></div>
+    <p>Chargement de votre plan nutritionnel…</p>
+  </div>
+
+  <!-- ══ SESSION INTROUVABLE ══════════════════════════════════════════════ -->
+  <div *ngIf="!loading && !patientId" class="np-error-state">
+    <div class="np-error-icon">⚠️</div>
+    <h2>Session introuvable</h2>
+    <p>Veuillez vous reconnecter pour accéder à votre plan nutritionnel.</p>
+  </div>
+
+  <!-- ══ CONTENU PRINCIPAL ════════════════════════════════════════════════ -->
+  <div *ngIf="!loading && patientId">
+
+    <!-- ── HÉRO ─────────────────────────────────────────────────────────── -->
+    <div class="np-hero" [class.np-hero--empty]="!besoin">
+      <div class="np-hero-left">
+        <div class="np-hero-badge">🥗 Plan nutritionnel post-transplantation</div>
+        <h1 class="np-hero-title">Mon Suivi Nutritionnel</h1>
+        <p class="np-hero-sub" *ngIf="besoin">
+          Régime actif depuis le <strong>{{ formatDate(besoin.dateDebut || '') }}</strong>
+          <span *ngIf="besoin.traitementTacrolimus" class="np-med-pill">💊 Tacrolimus</span>
+          <span *ngIf="besoin.traitementPrednisone" class="np-med-pill">💊 Prednisone</span>
+        </p>
+        <p class="np-hero-sub" *ngIf="!besoin">Aucun régime défini — consultez votre médecin</p>
+        <div class="np-hero-quick" *ngIf="restrictions.length > 0 || alertesNonLues.length > 0">
+          <span *ngIf="alertesNonLues.length > 0" class="np-quick-badge np-quick-danger" (click)="setTab('alertes')">
+            🔔 {{ alertesNonLues.length }} alerte(s) non lue(s)
+          </span>
+          <span *ngIf="restrictions.length > 0" class="np-quick-badge np-quick-warn" (click)="setTab('eviter')">
+            🚫 {{ restrictions.length }} aliment(s) à éviter
+          </span>
+        </div>
+      </div>
+      <div class="np-hero-stats" *ngIf="besoin">
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🔥</span>
+          <div><span class="np-stat-v">{{ besoin.caloriesJour }}</span><span class="np-stat-u">kcal/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🧂</span>
+          <div><span class="np-stat-v">{{ besoin.potassiumMaxMg }}</span><span class="np-stat-u">mg K⁺/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🧪</span>
+          <div><span class="np-stat-v">{{ besoin.sodiumMaxMg }}</span><span class="np-stat-u">mg Na/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🥩</span>
+          <div><span class="np-stat-v">{{ besoin.proteinesMaxG }}</span><span class="np-stat-u">g prot/j</span></div>
+        </div>
+        <div class="np-stat-pill">
+          <span class="np-stat-ico">🍬</span>
+          <div><span class="np-stat-v">{{ besoin.sucreMaxG }}</span><span class="np-stat-u">g sucre/j</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BANDEAU ALERTES NON LUES (si présentes) ───────────────────────── -->
+    <div class="np-alert-banner" *ngIf="alertesNonLues.length > 0">
+      <div class="np-alert-banner-header">
+        <span class="np-alert-banner-title">
+          <span class="np-alert-dot-anim"></span>
+          🔔 {{ alertesNonLues.length }} alerte(s) nutritionnelle(s) non lue(s)
+        </span>
+        <button class="np-btn-sm" (click)="markAllAlertsRead()">✔️ Tout marquer lu</button>
+      </div>
+      <div class="np-alert-banner-list">
+        <div *ngFor="let a of alertesNonLues" class="np-alert-banner-item">
+          <span class="np-alert-banner-ico" [style.background]="getTypeBg(a.type || '')">{{ getTypeIcon(a.type || '') }}</span>
+          <div class="np-alert-banner-body">
+            <span class="np-alert-banner-type" [style.color]="getTypeColor(a.type || '')">
+              {{ alerteLabels[a.type || ''] || a.type }}
+            </span>
+            <span class="np-alert-banner-msg">{{ a.message }}</span>
+          </div>
+          <button class="np-alert-dismiss" (click)="markAlertRead(a.id!)" title="Marquer comme lue">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ONGLETS ───────────────────────────────────────────────────────── -->
+    <div class="np-tabs">
+      <button class="np-tab" [class.np-tab--active]="activeTab==='regime'" (click)="setTab('regime')">
+        📊 Mon Régime
+      </button>
+      <button class="np-tab" [class.np-tab--active]="activeTab==='conseilles'" (click)="setTab('conseilles')">
+        ✅ Aliments conseillés
+        <span class="np-tab-badge np-badge-green">{{ alimentsFiltres.length }}</span>
+      </button>
+      <button class="np-tab" [class.np-tab--active]="activeTab==='eviter'" (click)="setTab('eviter')">
+        🚫 À éviter
+        <span class="np-tab-badge np-badge-red" *ngIf="restrictions.length > 0">{{ restrictions.length }}</span>
+      </button>
+      <button class="np-tab" [class.np-tab--active]="activeTab==='alertes'" (click)="setTab('alertes')">
+        🔔 Mes Alertes
+        <span class="np-tab-badge np-badge-red" *ngIf="unreadCount > 0">{{ unreadCount }}</span>
+      </button>
+      <button class="np-tab np-tab--menus" (click)="openMenus()">
+        🗓️ Menus suggérés
+      </button>
+
+      <button class="np-tab np-tab--meal" (click)="openMealAnalysis()">
+        📸 Analyser un plat
+      </button>
+      <button class="np-tab" [class.np-tab--active]="activeTab==='labo'" (click)="setTab('labo'); openLabPanel()">
+        🧪 Bilans Labo
+      </button>
+    </div>
+
+    <!-- ══ ONGLET 1 : MON RÉGIME ══════════════════════════════════════════ -->
+    <div *ngIf="activeTab==='regime'" class="np-tab-content">
+
+      <div *ngIf="!besoin" class="np-empty">
+        <div class="np-empty-ico">🍽️</div>
+        <p>Votre médecin n'a pas encore défini de plan nutritionnel.</p>
+        <p class="np-empty-sub">Prenez rendez-vous pour obtenir votre régime personnalisé.</p>
+      </div>
+
+      <div *ngIf="besoin">
+
+        <!-- Limites avec barres comparatives -->
+        <div class="np-section-title">📊 Vos limites journalières</div>
+        <p class="np-section-sub">Les barres indiquent votre limite par rapport aux valeurs adultes standards.</p>
+
+        <div class="np-limits-grid">
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background:#fff5f0">🔥</span>
+              <div>
+                <span class="np-limit-label">Calories</span>
+                <span class="np-limit-val">{{ besoin.caloriesJour }} <small>kcal/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div class="np-limit-bar"
+                   [style.width.%]="getLimitPercent(besoin.caloriesJour, standard.calories)"
+                   [style.background]="getLimitBarColor(besoin.caloriesJour, standard.calories)">
+              </div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Apport cible selon votre poids et traitement</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.calories }} kcal</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background:#fff5f0">🧂</span>
+              <div>
+                <span class="np-limit-label">Potassium max</span>
+                <span class="np-limit-val">{{ besoin.potassiumMaxMg }} <small>mg/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div class="np-limit-bar"
+                   [style.width.%]="getLimitPercent(besoin.potassiumMaxMg, standard.potassium)"
+                   [style.background]="getLimitBarColor(besoin.potassiumMaxMg, standard.potassium)">
+              </div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Protège la fonction rénale</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.potassium }} mg</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background:#ebf8ff">🧪</span>
+              <div>
+                <span class="np-limit-label">Sodium max</span>
+                <span class="np-limit-val">{{ besoin.sodiumMaxMg }} <small>mg/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div class="np-limit-bar"
+                   [style.width.%]="getLimitPercent(besoin.sodiumMaxMg, standard.sodium)"
+                   [style.background]="getLimitBarColor(besoin.sodiumMaxMg, standard.sodium)">
+              </div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Évitez les aliments trop salés</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.sodium }} mg</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background:#faf5ff">💜</span>
+              <div>
+                <span class="np-limit-label">Phosphore max</span>
+                <span class="np-limit-val">{{ besoin.phosphoreMaxMg }} <small>mg/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div class="np-limit-bar"
+                   [style.width.%]="getLimitPercent(besoin.phosphoreMaxMg, standard.phosphore)"
+                   [style.background]="getLimitBarColor(besoin.phosphoreMaxMg, standard.phosphore)">
+              </div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Limitez laitages et fruits secs</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.phosphore }} mg</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background:#f0fff4">🥩</span>
+              <div>
+                <span class="np-limit-label">Protéines max</span>
+                <span class="np-limit-val">{{ besoin.proteinesMaxG }} <small>g/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div class="np-limit-bar"
+                   [style.width.%]="getLimitPercent(besoin.proteinesMaxG, standard.proteines)"
+                   [style.background]="getLimitBarColor(besoin.proteinesMaxG, standard.proteines)">
+              </div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Privilégiez les protéines maigres</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.proteines }} g</span>
+            </div>
+          </div>
+
+          <div class="np-limit-card">
+            <div class="np-limit-header">
+              <span class="np-limit-ico" style="background:#fefce8">🍬</span>
+              <div>
+                <span class="np-limit-label">Sucre max</span>
+                <span class="np-limit-val">{{ besoin.sucreMaxG }} <small>g/j</small></span>
+              </div>
+            </div>
+            <div class="np-limit-bar-bg">
+              <div class="np-limit-bar"
+                   [style.width.%]="getLimitPercent(besoin.sucreMaxG, standard.sucre)"
+                   [style.background]="getLimitBarColor(besoin.sucreMaxG, standard.sucre)">
+              </div>
+            </div>
+            <div class="np-limit-footer">
+              <span class="np-limit-hint">Évitez sodas, bonbons, pâtisseries</span>
+              <span class="np-limit-ref">Réf. adulte : {{ standard.sucre }} g</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Légende barres -->
+        <div class="np-bar-legend">
+          <span class="np-legend-item"><span class="np-legend-dot" style="background:#22c55e"></span>Proche de la norme</span>
+          <span class="np-legend-item"><span class="np-legend-dot" style="background:#f59e0b"></span>Réduit</span>
+          <span class="np-legend-item"><span class="np-legend-dot" style="background:#ef4444"></span>Très réduit</span>
+        </div>
+
+        <!-- Conseils personnalisés -->
+        <div class="np-section-title" style="margin-top:32px">💡 Conseils personnalisés</div>
+        <div class="np-tips-grid">
+          <div class="np-tip-card np-tip-danger" *ngIf="besoin.traitementTacrolimus">
+            <div class="np-tip-icon">🍊</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Tacrolimus — Interactions alimentaires</span>
+              <span class="np-tip-text">Évitez absolument le <strong>pamplemousse</strong> et l'<strong>orange amère</strong>. Ces fruits augmentent la concentration de Tacrolimus dans le sang et peuvent provoquer une toxicité grave.</span>
+            </div>
+          </div>
+          <div class="np-tip-card np-tip-warn" *ngIf="besoin.traitementPrednisone">
+            <div class="np-tip-icon">🍬</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Prednisone — Limiter le sucre</span>
+              <span class="np-tip-text">La Prednisone augmente le risque de <strong>diabète cortico-induit</strong>. Évitez sodas, bonbons, gâteaux et chocolat. Privilégiez les sucres lents (céréales complètes).</span>
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">💧</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Hydratation quotidienne</span>
+              <span class="np-tip-text">Buvez <strong>1.5 à 2L d'eau</strong> par jour pour soutenir la fonction rénale. Évitez les jus de fruits concentrés riches en potassium (jus d'orange, de tomate).</span>
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">🍳</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Mode de cuisson</span>
+              <span class="np-tip-text">Cuisinez de préférence <strong>à la vapeur ou à l'eau bouillante</strong>. Cette technique réduit significativement le potassium et le sodium des légumes et viandes.</span>
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">🥗</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Répartition des repas</span>
+              <span class="np-tip-text">Répartissez votre alimentation en <strong>3 repas principaux</strong> réguliers. Évitez les sauts de repas et les grignotages non planifiés qui déséquilibrent vos apports.</span>
+            </div>
+          </div>
+          <div class="np-tip-card">
+            <div class="np-tip-icon">📋</div>
+            <div class="np-tip-body">
+              <span class="np-tip-title">Suivi médical</span>
+              <span class="np-tip-text">Consultez votre diététicien spécialisé en transplantation régulièrement. Apportez un journal alimentaire pour ajuster votre plan selon vos bilans sanguins.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes du médecin -->
+        <div class="np-notes" *ngIf="besoin.raisonCalcul">
+          <span class="np-notes-label">📝 Notes de votre médecin :</span>
+          <span class="np-notes-text">{{ besoin.raisonCalcul }}</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ ONGLET 2 : ALIMENTS CONSEILLÉS ════════════════════════════════ -->
+    <div *ngIf="activeTab==='conseilles'" class="np-tab-content">
+
+      <div class="np-search-bar">
+        <input type="text" class="np-search-input"
+               [(ngModel)]="searchAliment"
+               (ngModelChange)="filterAliments()"
+               placeholder="🔍 Rechercher un aliment…">
+        <div class="np-cat-filters">
+          <button class="np-cat-btn"
+                  [class.np-cat-btn--active]="selectedCat===''"
+                  (click)="selectedCat=''; filterAliments()">Tous</button>
+          <button *ngFor="let cat of categories"
+                  class="np-cat-btn"
+                  [class.np-cat-btn--active]="selectedCat===cat"
+                  [style.border-color]="getCatColor(cat)"
+                  [style.color]="selectedCat===cat ? 'white' : getCatColor(cat)"
+                  [style.background]="selectedCat===cat ? getCatColor(cat) : getCatBg(cat)"
+                  (click)="selectedCat=cat; filterAliments()">
+            {{ getCatIcon(cat) }} {{ categorieLabels[cat] || cat }}
+          </button>
+        </div>
+      </div>
+
+        <p class="np-results-count">
+        {{ alimentsFiltres.length }} aliment(s) autorisé(s)
+        <span *ngIf="selectedCat"> dans la catégorie « {{ categorieLabels[selectedCat] }} »</span>
+        <span class="np-results-maison-hint" *ngIf="maisonAlimentIds.size > 0"> — {{ maisonAlimentIds.size }} coché(s) « à la maison » 🏠 (menus auto)</span>
+      </p>
+
+      <div *ngIf="alimentsFiltres.length === 0" class="np-empty">
+        <div class="np-empty-ico">🔍</div>
+        <p>Aucun aliment trouvé.</p>
+        <p class="np-empty-sub">Essayez une autre recherche ou catégorie.</p>
+      </div>
+
+      <div class="np-food-grid">
+        <div *ngFor="let a of alimentsFiltres" class="np-food-card" [style.border-top-color]="getCatColor(a.categorie)">
+          <div class="np-food-header">
+            <span class="np-food-icon" [style.background]="getCatBg(a.categorie)">{{ getCatIcon(a.categorie) }}</span>
+            <div class="np-food-info">
+              <span class="np-food-name">{{ a.nom }}</span>
+              <span class="np-food-cat" [style.color]="getCatColor(a.categorie)">{{ categorieLabels[a.categorie] || a.categorie }}</span>
+            </div>
+            <div class="np-food-actions">
+              <button type="button"
+                      class="np-maison-btn"
+                      [class.np-maison-btn--on]="estAlimentMaison(a.id)"
+                      (click)="toggleAlimentMaison(a.id, $event)"
+                      *ngIf="a.id != null"
+                      title="J’ai cet aliment à la maison — utilisé pour pré-sélectionner les menus suggérés">
+                🏠
+              </button>
+              <span class="np-food-ok">✅</span>
+            </div>
+          </div>
+          <!-- Valeurs nutritionnelles pour 100g -->
+          <div class="np-food-nutrients" *ngIf="a.caloriesKcal || a.potassiumMg || a.sodiumMg || a.proteinesG || a.phosphoreMg || a.sucreG">
+            <div class="np-food-nutrients-title">Pour 100g :</div>
+            <div class="np-food-nutrients-grid">
+              <span *ngIf="a.caloriesKcal" class="np-nutrient np-n-cal">🔥 {{ a.caloriesKcal }} kcal</span>
+              <span *ngIf="a.potassiumMg"  class="np-nutrient np-n-k">🧂 {{ a.potassiumMg }}mg K⁺</span>
+              <span *ngIf="a.sodiumMg"     class="np-nutrient np-n-na">🧪 {{ a.sodiumMg }}mg Na</span>
+              <span *ngIf="a.phosphoreMg"  class="np-nutrient np-n-p">💜 {{ a.phosphoreMg }}mg P</span>
+              <span *ngIf="a.proteinesG"   class="np-nutrient np-n-prot">🥩 {{ a.proteinesG }}g prot</span>
+              <span *ngIf="a.sucreG"       class="np-nutrient np-n-sucre">🍬 {{ a.sucreG }}g sucre</span>
+            </div>
+          </div>
+          <!-- Âge minimum -->
+          <div class="np-food-age" *ngIf="a.ageMinimumMois">
+            <span>👶 Déconseillé avant {{ a.ageMinimumMois }} mois</span>
+          </div>
+          <!-- Notes -->
+          <p class="np-food-note" *ngIf="a.notes">📝 {{ a.notes }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET 3 : À ÉVITER ════════════════════════════════════════════ -->
+    <div *ngIf="activeTab==='eviter'" class="np-tab-content">
+
+      <div *ngIf="restrictions.length === 0" class="np-empty np-empty--green">
+        <div class="np-empty-ico">✅</div>
+        <p>Aucun aliment restreint pour vous actuellement.</p>
+        <p class="np-empty-sub">Continuez à suivre les recommandations de votre médecin.</p>
+      </div>
+
+      <div *ngIf="restrictions.length > 0">
+        <div class="np-restrict-info">
+          ⚠️ Les aliments suivants ont été identifiés comme <strong>dangereux ou déconseillés</strong> pour votre traitement ou votre état de santé. Respectez strictement ces restrictions.
+        </div>
+
+        <div class="np-restrict-list">
+          <div *ngFor="let r of restrictions" class="np-restrict-card">
+            <div class="np-restrict-left">
+              <div class="np-restrict-icon" [style.background]="getRaisonBg(r.raison)">🚫</div>
+            </div>
+            <div class="np-restrict-body">
+              <div class="np-restrict-top">
+                <span class="np-restrict-name">{{ getAlimentNom(r.alimentId) }}</span>
+                <span class="np-restrict-raison"
+                      [style.color]="getRaisonColor(r.raison)"
+                      [style.background]="getRaisonBg(r.raison)">
+                  {{ raisonLabels[r.raison] || r.raison }}
+                </span>
+                <span *ngIf="r.creeAutomatiquement" class="np-auto-badge">🤖 Auto</span>
+              </div>
+              <!-- Valeurs nutritionnelles de l'aliment interdit -->
+              <div class="np-restrict-nutrients" *ngIf="getAliment(r.alimentId) as al">
+                <span *ngIf="al.potassiumMg"  class="np-nutrient np-n-k">🧂 {{ al.potassiumMg }}mg K⁺</span>
+                <span *ngIf="al.sodiumMg"     class="np-nutrient np-n-na">🧪 {{ al.sodiumMg }}mg Na</span>
+                <span *ngIf="al.caloriesKcal" class="np-nutrient np-n-cal">🔥 {{ al.caloriesKcal }}kcal</span>
+                <span *ngIf="al.interactionTacrolimus"   class="np-nutrient np-n-warn">⚠️ Tacrolimus</span>
+                <span *ngIf="al.interactionCyclosporine" class="np-nutrient np-n-warn">⚠️ Cyclosporine</span>
+              </div>
+              <div class="np-restrict-meta">
+                <span class="np-restrict-date">📅 Depuis le {{ formatDate(r.dateDebut || '') }}</span>
+                <span *ngIf="r.valeurBilanDeclencheur" class="np-restrict-bilan">Bilan : {{ r.valeurBilanDeclencheur }}</span>
+              </div>
+              <div class="np-restrict-notes" *ngIf="r.notes">📝 {{ r.notes }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET 4 : MY ALERTS ════════════════════════════════════════════ -->
+    <div *ngIf="activeTab==='alertes'" class="np-tab-content">
+
+      <!-- Header -->
+      <div class="nal-header">
+        <div class="nal-header-left">
+          <span class="nal-header-icon">🔔</span>
+          <div>
+            <h3 class="nal-header-title">My Alerts</h3>
+            <p class="nal-header-sub">{{ toutesAlertes.length }} alert{{ toutesAlertes.length !== 1 ? 's' : '' }} total — {{ unreadCount }} unread</p>
+          </div>
+        </div>
+        <button class="nal-markall-btn" *ngIf="unreadCount > 0" (click)="markAllAlertsRead()">
+          ✔ Mark all as read
+        </button>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="nal-filters">
+        <button class="nal-filter" [class.nal-filter--active]="alerteFilter==='all'" (click)="alerteFilter='all'">
+          All <span class="nal-badge">{{ toutesAlertes.length }}</span>
+        </button>
+        <button class="nal-filter nal-filter--unread" [class.nal-filter--active]="alerteFilter==='unread'" (click)="alerteFilter='unread'">
+          Unread <span class="nal-badge nal-badge--red">{{ unreadCount }}</span>
+        </button>
+        <button class="nal-filter nal-filter--read" [class.nal-filter--active]="alerteFilter==='read'" (click)="alerteFilter='read'">
+          Read <span class="nal-badge nal-badge--green">{{ toutesAlertes.length - unreadCount }}</span>
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="loadingAlertes" class="nal-loading">
+        <div class="nal-spinner"></div>
+        <span>Loading alerts…</span>
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="!loadingAlertes && alertesFiltrees.length === 0" class="nal-empty">
+        <div class="nal-empty-icon">🔕</div>
+        <p *ngIf="alerteFilter==='all'">No alerts recorded.</p>
+        <p *ngIf="alerteFilter==='unread'">You're all caught up! 🎉</p>
+        <p *ngIf="alerteFilter==='read'">No read alerts.</p>
+      </div>
+
+      <!-- Alert cards -->
+      <div class="nal-list">
+        <div *ngFor="let a of alertesFiltrees"
+             class="nal-card"
+             [class.nal-card--unread]="!a.lue"
+             [class.nal-card--read]="a.lue">
+
+          <!-- Left: icon + unread dot -->
+          <div class="nal-card-icon-wrap" [style.background]="getTypeBg(a.type)">
+            <span class="nal-card-icon">{{ getTypeIcon(a.type) }}</span>
+            <span class="nal-dot" *ngIf="!a.lue"></span>
+          </div>
+
+          <!-- Body -->
+          <div class="nal-card-body">
+            <div class="nal-card-row">
+              <span class="nal-card-type" [style.color]="getTypeColor(a.type)">
+                {{ alerteLabels[a.type] || a.type }}
+              </span>
+              <span class="nal-card-badge" [class.nal-card-badge--unread]="!a.lue" [class.nal-card-badge--read]="a.lue">
+                {{ a.lue ? '✓ Read' : '● Unread' }}
+              </span>
+            </div>
+            <p class="nal-card-msg">{{ a.message }}</p>
+            <p class="nal-card-details" *ngIf="a.detailsTechniques">{{ a.detailsTechniques }}</p>
+            <span class="nal-card-date">{{ formatDateTime(a.dateAlerte || '') }}</span>
+          </div>
+
+          <!-- Action -->
+          <button class="nal-read-btn" *ngIf="!a.lue" (click)="markAlertRead(a.id!)" title="Mark as read">
+            👁 Mark read
+          </button>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ ONGLET 3 : MENUS DE LA SEMAINE ════════════════════════════════ -->
+    <div *ngIf="activeTab==='menus'" class="np-tab-content">
+      <div class="np-card">
+        <h2 class="np-card-title">🗓️ Menus suggérés</h2>
+        <p class="np-card-sub">Générez 3 menus par jour selon votre régime.</p>
+        <button class="np-btn-primary" (click)="openMenus()">Voir les menus de la semaine</button>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET BILANS LABO (OpenFeign NEPHRO → Nutrition) ══════════════ -->
+    <div *ngIf="activeTab==='labo'" class="np-tab-content">
+      <div class="np-card" style="max-width:720px; margin:0 auto;">
+
+        <!-- Header -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,#0d3b6e,#1f8dd6);
+                      display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;">🧪</div>
+          <div>
+            <h2 style="margin:0; font-size:1.1rem; font-weight:800; color:#0d3b6e;">Bilans de Laboratoire</h2>
+            <p style="margin:0; font-size:.78rem; color:#64748b;">
+              Résultats récupérés depuis votre dossier médical · Adaptation nutritionnelle automatique
+            </p>
+          </div>
+        </div>
+
+        <!-- Chargement dossiers -->
+        <div *ngIf="dossiersLoading" style="display:flex; align-items:center; gap:10px; padding:14px;
+                                             background:#f8fafc; border-radius:8px; margin-bottom:14px;
+                                             color:#64748b; font-size:.88rem;">
+          <span style="animation:spin 1s linear infinite; display:inline-block;">⏳</span>
+          Récupération de vos dossiers médicaux…
+        </div>
+
+        <!-- Sélecteur dossiers (si plusieurs) -->
+        <div *ngIf="!dossiersLoading && mesDossiers.length > 1" style="margin-bottom:16px;">
+          <div style="font-size:.75rem; font-weight:700; color:#475569; text-transform:uppercase;
+                      letter-spacing:.4px; margin-bottom:8px;">
+            📁 Vos dossiers médicaux — {{ mesDossiers[0]?.patientNom || 'Patient' }}
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div *ngFor="let d of mesDossiers"
+                 (click)="selectDossier(d)"
+                 style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px;
+                        border-radius:10px; border:1.5px solid #e2e8f0; cursor:pointer; transition:all .15s;"
+                 [style.border-color]="labDossierId === d.idDossierMedical ? '#1f8dd6' : '#e2e8f0'"
+                 [style.background]="labDossierId === d.idDossierMedical ? '#eff6ff' : 'white'">
+              <div>
+                <div style="font-size:.88rem; font-weight:700; color:#1e293b;">
+                  📋 Dossier #{{ d.idDossierMedical }}
+                  <span *ngIf="d.patientNom" style="font-weight:400; color:#64748b; margin-left:6px;">
+                    — {{ d.patientNom }}
+                  </span>
+                </div>
+                <div style="font-size:.72rem; color:#94a3b8; margin-top:2px;">
+                  {{ d.diagnostic }} · Créé le {{ d.dateCreation | date:'dd/MM/yyyy' }}
+                </div>
+              </div>
+              <span *ngIf="labDossierId === d.idDossierMedical"
+                    style="color:#1f8dd6; font-size:1.1rem;">✔</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dossier unique sélectionné automatiquement -->
+        <div *ngIf="!dossiersLoading && mesDossiers.length === 1 && labDossierId"
+             style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:#eff6ff;
+                    border:1.5px solid #bfdbfe; border-radius:8px; margin-bottom:14px;
+                    font-size:.85rem; color:#1e40af;">
+          ✅ Dossier de <strong>{{ mesDossiers[0]?.patientNom || 'votre compte' }}</strong>
+          chargé automatiquement
+          <span style="color:#64748b; font-size:.75rem;">(#{{ labDossierId }})</span>
+        </div>
+
+        <!-- Erreur -->
+        <div *ngIf="labError" style="padding:10px 14px; background:#fef2f2; border:1px solid #fca5a5;
+                                      border-radius:8px; color:#991b1b; font-size:.85rem; margin-bottom:14px;">
+          ⚠️ {{ labError }}
+        </div>
+
+        <!-- Chargement résultats -->
+        <div *ngIf="labLoading" style="display:flex; align-items:center; gap:10px; padding:14px;
+                                        background:#f8fafc; border-radius:8px; color:#64748b; font-size:.88rem;">
+          <span style="animation:spin 1s linear infinite; display:inline-block;">⏳</span>
+          Chargement des résultats de laboratoire…
+        </div>
+
+        <!-- Résultats -->
+        <div *ngIf="!labLoading && labResults.length > 0">
+
+          <!-- Bouton adapter -->
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+                      gap:10px; margin-bottom:16px; padding:12px 16px; background:#f0fdf4;
+                      border:1.5px solid #86efac; border-radius:10px;">
+            <div>
+              <div style="font-size:.88rem; font-weight:700; color:#166534;">
+                🔄 Adapter mon régime selon ces résultats
+              </div>
+              <div style="font-size:.75rem; color:#4ade80; margin-top:2px;">
+                Ajuste automatiquement potassium, phosphore et protéines selon les valeurs anormales
+              </div>
+            </div>
+            <button (click)="adaptNutritionFromLab()"
+                    [disabled]="labAdaptLoading || !patientId"
+                    style="padding:9px 18px; background:#16a34a; color:white; border:none;
+                           border-radius:8px; font-weight:700; font-size:.85rem; cursor:pointer; white-space:nowrap;">
+              {{ labAdaptLoading ? '⏳ Adaptation…' : '✨ Adapter mon régime' }}
+            </button>
+          </div>
+
+          <!-- Succès / erreur adaptation -->
+          <div *ngIf="labAdaptSuccess" style="padding:10px 14px; background:#f0fdf4; border:1px solid #86efac;
+                                               border-radius:8px; color:#166534; font-size:.85rem; margin-bottom:14px;">
+            ✅ Régime adapté avec succès ! Vos besoins nutritionnels ont été mis à jour.
+          </div>
+          <div *ngIf="labAdaptError" style="padding:10px 14px; background:#fef2f2; border:1px solid #fca5a5;
+                                             border-radius:8px; color:#991b1b; font-size:.85rem; margin-bottom:14px;">
+            ⚠️ {{ labAdaptError }}
+          </div>
+
+          <!-- Compteur -->
+          <div style="font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+                      color:#64748b; margin-bottom:8px;">
+            {{ labResults.length }} résultat(s)
+          </div>
+
+          <!-- Liste résultats -->
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div *ngFor="let r of labResults"
+                 style="border-radius:10px; border:1.5px solid; overflow:hidden;"
+                 [style.border-color]="getInterpretationColor(r.interpretation)">
+
+              <!-- Ligne principale -->
+              <div style="display:flex; align-items:center; gap:12px; padding:12px 14px;"
+                   [style.background]="getInterpretationBg(r.interpretation)">
+
+                <!-- Icône -->
+                <div style="font-size:1.3rem; flex-shrink:0; width:28px; text-align:center;">
+                  {{ getInterpretationIcon(r.interpretation) }}
+                </div>
+
+                <!-- Nom + date -->
+                <div style="flex:1; min-width:0; overflow:hidden;">
+                  <div style="font-size:.9rem; font-weight:700; color:#1e293b;
+                              white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ r.nomTest || r.codeTest || ('Test #' + r.idTestLaboratoire) }}
+                  </div>
+                  <div style="font-size:.72rem; color:#94a3b8; margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <span>{{ (r.dateResultat || r.datePrelevement) | date:'dd/MM/yyyy' }}</span>
+                    <span *ngIf="r.statutResultat"
+                          style="padding:1px 6px; border-radius:6px; background:#f1f5f9; color:#64748b; font-size:.68rem;">
+                      {{ r.statutResultat }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Valeur + interprétation -->
+                <div style="text-align:right; flex-shrink:0; min-width:80px;">
+                  <div style="font-size:1.05rem; font-weight:900; line-height:1.2;"
+                       [style.color]="getInterpretationColor(r.interpretation)">
+                    {{ r.valeurNumerique !== null && r.valeurNumerique !== undefined
+                        ? (r.valeurNumerique | number:'1.1-2')
+                        : (r.valeurTexte || '—') }}
+                    <span style="font-size:.7rem; font-weight:400; color:#94a3b8; margin-left:2px;">
+                      {{ r.unite }}
+                    </span>
+                  </div>
+                  <div *ngIf="r.interpretation"
+                       style="font-size:.68rem; font-weight:700; margin-top:2px; padding:1px 6px;
+                              border-radius:6px; display:inline-block;"
+                       [style.color]="getInterpretationColor(r.interpretation)"
+                       [style.background]="'white'">
+                    {{ r.interpretation }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Conclusion (si présente) — ligne séparée, tronquée -->
+              <div *ngIf="r.conclusion"
+                   style="padding:6px 14px 8px 54px; background:white; font-size:.75rem;
+                          color:#64748b; line-height:1.5; border-top:1px solid #f1f5f9;
+                          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                   [title]="r.conclusion">
+                💬 {{ r.conclusion }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- État vide initial -->
+        <div *ngIf="!dossiersLoading && !labLoading && labResults.length === 0 && !labError && !labDossierId"
+             style="text-align:center; padding:32px 20px; color:#94a3b8;">
+          <div style="font-size:2.5rem; margin-bottom:10px;">🧪</div>
+          <div style="font-size:.9rem; font-weight:600;">Chargement de vos dossiers en cours…</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ ONGLET 4 : PLAN COMPLET SEMAINE ═════════════════════════════ -->
+    <div *ngIf="activeTab==='semaine'" class="np-tab-content">
+      <app-weekly-menu
+        *ngIf="joursList.length > 0"
+        [menus]="semaine"
+        [menuChoisi]="menuChoisi"
+        [caloriesJour]="besoin?.caloriesJour || 2000"
+        [joursList]="joursList"
+        (menuChoisiChange)="choisirMenu($event.jour, $event.index)">
+      </app-weekly-menu>
+
+      <div class="np-card" *ngIf="joursList.length === 0">
+        <h2 class="np-card-title">📅 Plan de la semaine</h2>
+        <p class="np-card-sub">Aucun menu chargé. Génère d’abord les menus.</p>
+        <button class="np-btn-primary" (click)="openMenus()">Ouvrir les menus</button>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET 5 : MA MOTIVATION ══════════════════════════════════════════ -->
+    <div *ngIf="activeTab==='motiv'" class="np-tab-content motiv-tab">
+
+      <div class="motiv-header">
+        <h2 class="motiv-title">🌟 Tu es un champion !</h2>
+        <p class="motiv-sub">Coche tes repas — ton personnage se colorie ! 🎨</p>
+      </div>
+
+      <div class="motiv-layout">
+
+        <!-- LEFT : Repas + progress -->
+        <div class="motiv-left">
+
+          <!-- Repas checkboxes -->
+          <div class="motiv-meals">
+            <div class="motiv-meal-card"
+                 [class.motiv-meal-card--done]="repasCocheAujourdhui[0]"
+                 (click)="toggleRepas(0)">
+              <div class="motiv-check" [class.motiv-check--done]="repasCocheAujourdhui[0]">
+                <span *ngIf="!repasCocheAujourdhui[0]">○</span>
+                <span *ngIf="repasCocheAujourdhui[0]" class="motiv-check-tick">✓</span>
+              </div>
+              <div class="motiv-meal-info">
+                <span class="motiv-meal-name">Petit-déjeuner 🌅</span>
+                <span class="motiv-meal-hint">colorie la tête</span>
+              </div>
+              <div class="motiv-meal-dot motiv-dot--head" [class.motiv-dot--lit]="repasCocheAujourdhui[0]"></div>
+            </div>
+
+            <div class="motiv-meal-card"
+                 [class.motiv-meal-card--done]="repasCocheAujourdhui[1]"
+                 (click)="toggleRepas(1)">
+              <div class="motiv-check" [class.motiv-check--done]="repasCocheAujourdhui[1]">
+                <span *ngIf="!repasCocheAujourdhui[1]">○</span>
+                <span *ngIf="repasCocheAujourdhui[1]" class="motiv-check-tick">✓</span>
+              </div>
+              <div class="motiv-meal-info">
+                <span class="motiv-meal-name">Déjeuner ☀️</span>
+                <span class="motiv-meal-hint">colorie le corps</span>
+              </div>
+              <div class="motiv-meal-dot motiv-dot--body" [class.motiv-dot--lit]="repasCocheAujourdhui[1]"></div>
+            </div>
+
+            <div class="motiv-meal-card"
+                 [class.motiv-meal-card--done]="repasCocheAujourdhui[2]"
+                 (click)="toggleRepas(2)">
+              <div class="motiv-check" [class.motiv-check--done]="repasCocheAujourdhui[2]">
+                <span *ngIf="!repasCocheAujourdhui[2]">○</span>
+                <span *ngIf="repasCocheAujourdhui[2]" class="motiv-check-tick">✓</span>
+              </div>
+              <div class="motiv-meal-info">
+                <span class="motiv-meal-name">Dîner 🌙</span>
+                <span class="motiv-meal-hint">colorie les jambes</span>
+              </div>
+              <div class="motiv-meal-dot motiv-dot--legs" [class.motiv-dot--lit]="repasCocheAujourdhui[2]"></div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="motiv-progress-wrap">
+            <div class="motiv-progress-bar">
+              <div class="motiv-progress-fill"
+                   [style.width.%]="(totalCoche / 3) * 100"
+                   [class.motiv-progress-gold]="totalCoche === 3">
+              </div>
+            </div>
+            <span class="motiv-progress-label">{{ totalCoche }} / 3</span>
+          </div>
+
+          <!-- Message -->
+          <p class="motiv-msg" *ngIf="totalCoche === 0">Coche un repas pour commencer ! 🍽️</p>
+          <p class="motiv-msg motiv-msg--1" *ngIf="totalCoche === 1">Super ! Continue 💪</p>
+          <p class="motiv-msg motiv-msg--2" *ngIf="totalCoche === 2">Excellent ! Plus qu'un ! 🔥</p>
+          <p class="motiv-msg motiv-msg--3" *ngIf="totalCoche === 3">🏆 PARFAIT ! Tu es INCROYABLE ! 🎉</p>
+
+        </div><!-- fin motiv-left -->
+
+        <!-- RIGHT : Personnage SVG -->
+        <div class="motiv-right">
+          <div class="motiv-character-wrap" [class.motiv-character--celebrate]="totalCoche === 3">
+
+            <!-- Étoiles victoire -->
+            <div class="motiv-stars" *ngIf="totalCoche === 3">
+              <span class="motiv-star s1">⭐</span>
+              <span class="motiv-star s2">🌟</span>
+              <span class="motiv-star s3">⭐</span>
+            </div>
+
+            <svg class="motiv-body-svg" viewBox="0 0 120 210" xmlns="http://www.w3.org/2000/svg">
+
+              <!-- ── JAMBES (repas 2) ── -->
+              <rect x="34" y="122" width="20" height="62" rx="10"
+                    class="motiv-part motiv-part--legs"
+                    [class.motiv-part--filled]="repasCocheAujourdhui[2]"/>
+              <rect x="66" y="122" width="20" height="62" rx="10"
+                    class="motiv-part motiv-part--legs"
+                    [class.motiv-part--filled]="repasCocheAujourdhui[2]"/>
+              <!-- Chaussures -->
+              <ellipse cx="44" cy="184" rx="14" ry="7"
+                       class="motiv-part motiv-part--legs"
+                       [class.motiv-part--filled]="repasCocheAujourdhui[2]"/>
+              <ellipse cx="76" cy="184" rx="14" ry="7"
+                       class="motiv-part motiv-part--legs"
+                       [class.motiv-part--filled]="repasCocheAujourdhui[2]"/>
+
+              <!-- ── CORPS (repas 1) ── -->
+              <rect x="28" y="68" width="64" height="58" rx="18"
+                    class="motiv-part motiv-part--body"
+                    [class.motiv-part--filled]="repasCocheAujourdhui[1]"/>
+              <!-- Bras gauche -->
+              <rect x="6" y="72" width="24" height="14" rx="7"
+                    class="motiv-part motiv-part--body"
+                    [class.motiv-part--filled]="repasCocheAujourdhui[1]"
+                    transform="rotate(-20 6 72)"/>
+              <!-- Bras droit -->
+              <rect x="90" y="72" width="24" height="14" rx="7"
+                    class="motiv-part motiv-part--body"
+                    [class.motiv-part--filled]="repasCocheAujourdhui[1]"
+                    transform="rotate(20 114 72)"/>
+              <!-- Mains -->
+              <circle cx="12" cy="87" r="8"
+                      class="motiv-part motiv-part--body"
+                      [class.motiv-part--filled]="repasCocheAujourdhui[1]"/>
+              <circle cx="108" cy="87" r="8"
+                      class="motiv-part motiv-part--body"
+                      [class.motiv-part--filled]="repasCocheAujourdhui[1]"/>
+
+              <!-- ── TÊTE (repas 0) ── -->
+              <circle cx="60" cy="36" r="30"
+                      class="motiv-part motiv-part--head"
+                      [class.motiv-part--filled]="repasCocheAujourdhui[0]"/>
+              <!-- Cheveux -->
+              <ellipse cx="60" cy="8" rx="22" ry="8"
+                       class="motiv-part motiv-part--hair"
+                       [class.motiv-part--filled]="repasCocheAujourdhui[0]"/>
+              <!-- Yeux (visibles seulement quand tête colorée) -->
+              <g *ngIf="repasCocheAujourdhui[0]" class="motiv-face">
+                <circle cx="50" cy="32" r="5" fill="#fff"/>
+                <circle cx="70" cy="32" r="5" fill="#fff"/>
+                <circle cx="51.5" cy="33" r="2.5" fill="#1e293b"/>
+                <circle cx="71.5" cy="33" r="2.5" fill="#1e293b"/>
+                <!-- Sourire -->
+                <path d="M 49 44 Q 60 52 71 44"
+                      stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <!-- Joues -->
+                <circle cx="43" cy="42" r="5" fill="#fda4af" opacity="0.7"/>
+                <circle cx="77" cy="42" r="5" fill="#fda4af" opacity="0.7"/>
+              </g>
+              <!-- Yeux vides (tête non colorée) -->
+              <g *ngIf="!repasCocheAujourdhui[0]">
+                <circle cx="50" cy="32" r="4" fill="#d1d5db"/>
+                <circle cx="70" cy="32" r="4" fill="#d1d5db"/>
+              </g>
+
+            </svg><!-- fin svg -->
+
+          </div>
+        </div><!-- fin motiv-right -->
+
+      </div><!-- fin motiv-layout -->
+
+    </div><!-- fin motiv tab -->
+
+  </div><!-- fin contenu principal -->
+
+</div><!-- fin np-wrapper -->
+
+<!-- ══ MODAL MENUS SEMAINE ═══════════════════════════════════════════════════ -->
+<div class="mn-overlay" *ngIf="showMenus" (click)="closeMenus()"></div>
+<div class="mn-modal" *ngIf="showMenus">
+
+  <!-- Header -->
+  <div class="mn-header">
+    <div class="mn-header-left">
+      <span class="mn-header-icon">🗓️</span>
+      <div class="mn-header-text">
+        <h2 class="mn-header-title">Menus suggérés de la semaine</h2>
+        <p class="mn-header-sub">3 propositions par jour — choisissez celle qui vous convient</p>
+        <p class="mn-header-hint">Chaque jour (7 jours) : le menu le plus cohérent avec vos aliments autorisés est choisi automatiquement. Le 🏠 (onglet conseillés) permet d’affiner selon ce que vous avez à la maison.</p>
+      </div>
+    </div>
+    <div class="mn-header-actions">
+      <button class="mn-btn-regen" (click)="regenererMenus()" [disabled]="menusLoading" title="Générer de nouveaux menus">
+        <span [class.mn-spin]="menusLoading">🔄</span> Régénérer
+      </button>
+      <button class="mn-pdf-btn mn-pdf-btn--week"
+              *ngIf="completedMenusCount === joursList.length && joursList.length === 7"
+              (click)="genererPdfSemaine()">
+        📄 Meal Planner PDF
+      </button>
+      <button class="mn-pdf-btn mn-pdf-btn--groceries"
+              *ngIf="joursList.length > 0"
+              (click)="genererPdfGroceries()"
+              title="Générer la liste de courses">
+        🛒 Groceries List
+      </button>
+      <button class="mn-btn-close" (click)="closeMenus()">✕</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="menusLoading" class="mn-loading">
+    <div class="mn-loader"></div>
+    <p>Génération de vos menus personnalisés…</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="!menusLoading && menusError" class="mn-error">
+    <span>⚠️</span> {{ menusError }}
+  </div>
+
+  <!-- Contenu -->
+  <div *ngIf="!menusLoading && !menusError && joursList.length" class="mn-body">
+
+    <!-- Sélecteur de jours -->
+    <div class="mn-days-nav">
+      <button *ngFor="let jour of joursList"
+              class="mn-day-btn"
+              [class.mn-day-btn--active]="activeJour === jour"
+              [class.mn-day-btn--chosen]="menuChoisi[jour] !== undefined"
+              (click)="setActiveJour(jour)">
+        <span class="mn-day-label">{{ formatJour(jour) }}</span>
+        <span class="mn-day-check" *ngIf="menuChoisi[jour] !== undefined">✓</span>
+      </button>
+    </div>
+
+    <!-- 3 cartes pour le jour actif -->
+    <div class="mn-cards-row" [class.mn-cards-visible]="menuCardVisible">
+      <div *ngFor="let menu of menusJourActif; let i = index"
+           class="mn-card"
+           [class.mn-card--chosen]="menuChoisi[activeJour] === i"
+           [style.animation-delay.ms]="i * 80"
+           (click)="choisirMenu(activeJour, i)">
+
+        <!-- Badge menu -->
+        <div class="mn-card-badge" [class.mn-card-badge--chosen]="menuChoisi[activeJour] === i">
+          <span *ngIf="menuChoisi[activeJour] !== i">Menu {{ i + 1 }}</span>
+          <span *ngIf="menuChoisi[activeJour] === i">✓ Choisi</span>
+        </div>
+
+        <!-- Totaux du jour -->
+        <div class="mn-card-totals">
+          <span class="mn-total-pill mn-total-cal">🔥 {{ menu.totalCalories | number:'1.0-0' }} kcal</span>
+          <span class="mn-total-pill mn-total-prot">🥩 {{ menu.totalProteines | number:'1.0-0' }}g prot</span>
+          <span class="mn-total-pill mn-total-k">🧂 {{ menu.totalPotassium | number:'1.0-0' }}mg K⁺</span>
+        </div>
+
+        <!-- Repas du jour -->
+        <div class="mn-repas-list">
+          <div *ngFor="let repas of menu.repas" class="mn-repas">
+            <div class="mn-repas-header">
+              <span class="mn-repas-icon">{{ getRepasIcon(repas.type || '') }}</span>
+              <span class="mn-repas-label">{{ getRepasLabel(repas.type || '') }}</span>
+              <span class="mn-repas-kcal">{{ repas.totalCalories | number:'1.0-0' }} kcal</span>
+            </div>
+            <ul class="mn-aliments">
+              <li *ngFor="let a of repas.aliments" class="mn-aliment">
+                <span class="mn-aliment-nom">{{ a.nom }}</span>
+                <span class="mn-aliment-qty">{{ a.portionG | number:'1.0-0' }}g</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Bouton choisir -->
+        <button class="mn-btn-choisir"
+                [class.mn-btn-choisir--active]="menuChoisi[activeJour] === i"
+                (click)="$event.stopPropagation(); choisirMenu(activeJour, i)">
+          {{ menuChoisi[activeJour] === i ? '✓ Menu sélectionné' : 'Choisir ce menu' }}
+        </button>
+      </div>
+    </div>
+
+
+  </div>
+</div>
+
+
+
+<!-- ══ MODAL ANALYSER UN PLAT (LogMeal) ═════════════════════════════════════ -->
+<div class="sc-overlay" *ngIf="showMealAnalysis" (click)="closeMealAnalysis()"></div>
+<div class="sc-modal" *ngIf="showMealAnalysis">
+
+  <!-- Header -->
+  <div class="sc-header">
+    <div class="sc-header-left">
+      <span class="sc-header-icon">📸</span>
+      <div>
+        <h2 class="sc-title">Analyser un plat</h2>
+        <p class="sc-subtitle">Prenez une photo de votre repas — l'IA identifie les aliments</p>
+      </div>
+    </div>
+    <button class="sc-close" (click)="closeMealAnalysis()">✕</button>
+  </div>
+
+  <!-- Zone upload (état initial) -->
+  <div *ngIf="!mealAnalysisLoading && !mealAnalysisResult">
+
+    <label class="ma-upload-zone">
+      <input type="file" accept="image/*" (change)="onMealPhotoSelected($event)" style="display:none">
+      <div class="ma-upload-inner">
+        <div class="ma-upload-ico">📷</div>
+        <span class="ma-upload-title">Choisir une photo de repas</span>
+        <span class="ma-upload-hint">JPG ou PNG — l'IA détecte automatiquement les aliments</span>
+      </div>
+    </label>
+
+    <!-- Aperçu photo sélectionnée -->
+    <div *ngIf="mealPhotoPreview" class="ma-preview-wrap">
+      <img [src]="mealPhotoPreview" class="ma-preview-img" alt="Aperçu repas">
+    </div>
+
+    <!-- Erreur -->
+    <div *ngIf="mealAnalysisError" class="sc-camera-error">⚠️ {{ mealAnalysisError }}</div>
+  </div>
+
+  <!-- Chargement -->
+  <div *ngIf="mealAnalysisLoading" class="sc-loading">
+    <div class="sc-spinner"></div>
+    <span *ngIf="!mealAnalysisError">Analyse en cours… l'IA identifie votre repas</span>
+    <span *ngIf="mealAnalysisError" class="sc-loading-msg">{{ mealAnalysisError }}</span>
+  </div>
+
+  <!-- Résultats -->
+  <div *ngIf="mealAnalysisResult && !mealAnalysisLoading">
+
+    <button class="sc-back" (click)="resetMealAnalysis()">← Analyser un autre plat</button>
+
+    <!-- Photo + aliments identifiés -->
+    <div class="ma-result-header">
+      <img *ngIf="mealPhotoPreview" [src]="mealPhotoPreview" class="ma-result-img" alt="">
+      <div class="ma-result-foods">
+        <span class="ma-foods-title">Aliments identifiés</span>
+        <div *ngFor="let f of mealAnalysisResult.foods" class="ma-food-row">
+          <span class="ma-food-name">{{ f.name }}</span>
+          <span class="ma-food-conf"
+                [class.ma-conf--high]="f.confidence > 70"
+                [class.ma-conf--med]="f.confidence > 40 && f.confidence <= 70"
+                [class.ma-conf--low]="f.confidence > 5 && f.confidence <= 40"
+                [class.ma-conf--unknown]="f.confidence <= 5">
+            {{ f.confidence > 5 ? f.confidence + '%' : '~' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Composants détectés -->
+    <div *ngIf="mealAnalysisResult.ingredients.length > 0" style="margin-top:14px">
+      <div class="ma-section-title">Composants détectés</div>
+      <div class="ma-ingredients-list">
+        <span *ngFor="let i of mealAnalysisResult.ingredients" class="ma-ingredient-tag">{{ i }}</span>
+      </div>
+    </div>
+
+    <!-- Restrictions alimentaires -->
+    <div *ngIf="restrictions.length > 0" style="margin-top:16px">
+      <div class="ma-section-title">Vos restrictions alimentaires</div>
+      <div *ngFor="let r of restrictions" class="ma-restriction-row">
+        <span class="ma-restriction-name">{{ getAlimentNom(r.alimentId) }}</span>
+        <span class="ma-restriction-raison">{{ r.raison }}</span>
+      </div>
+    </div>
+
+    <!-- Avertissements -->
+    <div class="sc-warnings" *ngIf="mealAnalysisResult.warnings.length > 0" style="margin-top:12px">
+      <div *ngFor="let w of mealAnalysisResult.warnings" class="sc-warning-item">{{ w }}</div>
+    </div>
+
+    <!-- Verdict -->
+    <div class="sc-verdict"
+         [class.sc-verdict--ok]="mealAnalysisResult.verdict === 'ok'"
+         [class.sc-verdict--warn]="mealAnalysisResult.verdict === 'warn'"
+         [class.sc-verdict--danger]="mealAnalysisResult.verdict === 'danger'"
+         style="margin-top:16px">
+      <span class="sc-verdict-ico">
+        {{ mealAnalysisResult.verdict === 'ok' ? '✅' : mealAnalysisResult.verdict === 'warn' ? '⚠️' : '❌' }}
+      </span>
+      <div>
+        <span class="sc-verdict-label">
+          {{ mealAnalysisResult.verdict === 'ok' ? 'Ce repas est adapté à votre régime' :
+             mealAnalysisResult.verdict === 'warn' ? 'À consommer avec précaution' :
+             'Ce repas est déconseillé — risque détecté' }}
+        </span>
+        <span class="sc-verdict-sub">Analyse basée sur vos restrictions alimentaires personnalisées</span>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- fin modal analyse plat -->
+
+<!-- (ancien composant app-weekly-menu supprimé : le rendu est déjà dans la modale ci-dessus) -->

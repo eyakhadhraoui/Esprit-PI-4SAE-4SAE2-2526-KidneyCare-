@@ -1,0 +1,23 @@
+<div class="daily-report-container" *ngIf="hasReports; else noReports">
+  <div class="daily-report-header">
+    <h4>Daily reports – Hospitalisation #{{ hospitalisationId }}</h4>
+  </div>
+
+  <ul class="daily-report-list">
+    <li *ngFor="let r of reports" class="daily-report-item">
+      <div class="dr-date">
+        {{ r.date | date:'dd/MM/yyyy HH:mm' }}
+      </div>
+      <div class="dr-observation">
+        {{ r.observation }}
+      </div>
+    </li>
+  </ul>
+</div>
+
+<ng-template #noReports>
+  <div class="daily-report-empty">
+    Aucun daily report pour cette hospitalisation.
+  </div>
+</ng-template>
+

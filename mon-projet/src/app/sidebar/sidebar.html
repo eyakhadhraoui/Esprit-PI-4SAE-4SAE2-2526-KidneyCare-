@@ -1,0 +1,136 @@
+<div class="sidebar">
+    <div class="sidebar-menu">
+
+        <!-- Main navigation -->
+        <a class="sidebar-item" routerLink="/back" routerLinkActive="active">
+            <span class="sidebar-item-icon">🏠</span>
+            <span>Dashboard</span>
+        </a>
+
+        <!-- Paramètres vitaux (style actif bleu + barre droite) -->
+        <a class="sidebar-item sidebar-item-vitals" routerLink="/back/parametres-vitaux" routerLinkActive="active-vitals">
+            <span class="sidebar-item-icon">💓</span>
+            <span>Paramètres Vitaux</span>
+        </a>
+        <a class="sidebar-item sidebar-item-vitals" routerLink="/back/ajouter-indicateur" routerLinkActive="active-vitals">
+            <span class="sidebar-item-icon">📊</span>
+            <span>Ajouter Indicateur</span>
+        </a>
+        <a class="sidebar-item sidebar-item-vitals" routerLink="/back/ajouter-constante" routerLinkActive="active-vitals">
+            <span class="sidebar-item-icon">🔬</span>
+            <span>Ajouter Constante</span>
+        </a>
+        <a class="sidebar-item sidebar-item-vitals" routerLink="/back/analyse-vitale" routerLinkActive="active-vitals">
+            <span class="sidebar-item-icon">🧠</span>
+            <span>Analyse vitale</span>
+        </a>
+
+        <a class="sidebar-item" routerLink="/back/consultations" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}">
+            <span class="sidebar-item-icon">🩺</span>
+            <span>Consultations</span>
+        </a>
+        <a class="sidebar-item" routerLink="/back/consultations/new" routerLinkActive="active">
+            <span class="sidebar-item-icon">👨‍⚕️</span>
+            <span>Nouvelle consultation</span>
+        </a>
+
+        <a class="sidebar-item" routerLink="/back/rendezvous/new" routerLinkActive="active">
+            <span class="sidebar-item-icon">📅</span>
+            <span>Add Appointment (RDV)</span>
+        </a>
+
+        <a class="sidebar-item" routerLink="/back/rapports/new" routerLinkActive="active">
+            <span class="sidebar-item-icon">📄</span>
+            <span>Add Report</span>
+        </a>
+
+        <a class="sidebar-item" routerLink="/back/users" routerLinkActive="active">
+            <span class="sidebar-item-icon">👥</span>
+            <span>Patients</span>
+        </a>
+
+        <a class="sidebar-item" routerLink="/back/dossiers" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}">
+            <span class="sidebar-item-icon">📁</span>
+            <span>Medical Records</span>
+        </a>
+
+       
+
+        <a class="sidebar-item" routerLink="/back/treatment" routerLinkActive="active">
+            <span class="sidebar-item-icon">💊</span>
+            <span>Traitements</span>
+        </a>
+
+        <div class="sidebar-group">
+            <button type="button" class="sidebar-group-header" (click)="nutritionOpen = !nutritionOpen" [attr.aria-expanded]="nutritionOpen">
+                <span class="sidebar-item-icon">🥗</span>
+                <span>Nutrition</span>
+                <span class="sidebar-group-caret">{{ nutritionOpen ? '▲' : '▼' }}</span>
+            </button>
+            <ul class="sidebar-sublist" *ngIf="nutritionOpen">
+                <li>
+                    <a class="sidebar-item sidebar-subitem" [routerLink]="['/back/nutrition']" [queryParams]="{ tab: 'aliments' }" [class.active]="isNutritionTab('aliments')">
+                        <span class="sidebar-item-icon">🍎</span>
+                        <span>Aliments</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-item sidebar-subitem" [routerLink]="['/back/nutrition']" [queryParams]="{ tab: 'regime' }" [class.active]="isNutritionTab('regime')">
+                        <span class="sidebar-item-icon">🥗</span>
+                        <span>Régime alimentaire</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-item sidebar-subitem" [routerLink]="['/back/nutrition']" [queryParams]="{ tab: 'restrictions' }" [class.active]="isNutritionTab('restrictions')">
+                        <span class="sidebar-item-icon">🚫</span>
+                        <span>Restrictions</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="sidebar-item sidebar-subitem" [routerLink]="['/back/nutrition']" [queryParams]="{ tab: 'alertes' }" [class.active]="isNutritionTab('alertes')">
+                        <span class="sidebar-item-icon">🔔</span>
+                        <span>Alertes</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Dashboards cliniques -->
+        <a class="sidebar-item" routerLink="/back/consultation-detail" routerLinkActive="active">
+            <span class="sidebar-item-icon">📊</span>
+            <span>Consultation Dashboard</span>
+        </a>
+        <a class="sidebar-item sidebar-item-infection-dashboard"
+           routerLink="/back/infection-dashboard"
+           routerLinkActive="sidebar-infection-dashboard-active">
+            <span class="sidebar-infection-icon" aria-hidden="true">🦠</span>
+            <span class="sidebar-infection-text">
+                <span class="sidebar-infection-line1">Infection</span>
+                <span class="sidebar-infection-line2">Dashboard</span>
+            </span>
+        </a>
+        <a class="sidebar-item" routerLink="/back/hospitalisations" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}">
+            <span class="sidebar-item-icon">🏥</span>
+            <span>Hospitalisations</span>
+        </a>
+        <a class="sidebar-item" routerLink="/back/labo" routerLinkActive="active">
+            <span class="sidebar-item-icon">🧪</span>
+            <span>Bilans labo</span>
+        </a>
+        <a class="sidebar-item" routerLink="/back/graft-function" routerLinkActive="active">
+            <span class="sidebar-item-icon">🫘</span>
+            <span>Fonction du greffon</span>
+        </a>
+        <a class="sidebar-item" routerLink="/back/consultations" routerLinkActive="active" [routerLinkActiveOptions]="{exact: false}">
+            <span class="sidebar-item-icon">🧫</span>
+            <span>Infections</span>
+        </a>
+    </div>
+
+    <div class="sidebar-footer">
+        <button type="button" class="sidebar-item sidebar-item-logout" (click)="logout()">
+            <span class="sidebar-item-icon">🚪</span>
+            <span>Logout</span>
+        </button>
+    </div>
+</div>
