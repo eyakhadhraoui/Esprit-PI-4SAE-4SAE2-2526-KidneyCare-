@@ -30,7 +30,7 @@ pipeline {
                     sh """
                     mvn clean verify sonar:sonar \
                     -Dsonar.projectKey=my-springboot-app \
-                    -Dsonar.host.url=http://localhost:9000 \
+                    -Dsonar.host.url=http://host.docker.internal:9000
                     -Dsonar.login=$SONAR_TOKEN
                     """
                 }
