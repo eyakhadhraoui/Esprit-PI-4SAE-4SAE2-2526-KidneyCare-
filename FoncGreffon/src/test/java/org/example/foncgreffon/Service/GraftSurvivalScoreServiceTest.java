@@ -10,6 +10,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.example.foncgreffon.Entity.RiskLevel;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -40,7 +42,7 @@ class GraftSurvivalScoreServiceTest {
         sampleScore.setSurvivalProbability1Year(0.92);
         sampleScore.setSurvivalProbability3Year(0.78);
         sampleScore.setSurvivalProbability5Year(0.65);
-        sampleScore.setRiskLevel("MODERE");
+        sampleScore.setRiskLevel(RiskLevel.MODERATE);
         sampleScore.seteGFRSlope(-2.5);
         sampleScore.setCreatinineSlope(0.3);
         sampleScore.setRejectionEpisodeCount(1);
@@ -64,7 +66,7 @@ class GraftSurvivalScoreServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getPatientId()).isEqualTo("patient-001");
         assertThat(result.getSurvivalProbability1Year()).isEqualTo(0.92);
-        assertThat(result.getRiskLevel()).isEqualTo("MODERE");
+        assertThat(result.getRiskLevel()).isEqualTo(RiskLevel.MODERATE);
         verify(repository, times(1)).save(sampleScore);
     }
 
@@ -102,7 +104,7 @@ class GraftSurvivalScoreServiceTest {
         List<GraftSurvivalScore> results = service.findByPatientId("patient-001");
 
         assertThat(results).hasSize(1);
-        assertThat(results.get(0).getRiskLevel()).isEqualTo("MODERE");
+        assertThat(results.get(0).getRiskLevel()).isEqualTo(RiskLevel.MODERATE);
     }
 
     @Test
@@ -154,7 +156,7 @@ class GraftSurvivalScoreServiceTest {
         updated.setSurvivalProbability1Year(0.80);
         updated.setSurvivalProbability3Year(0.65);
         updated.setSurvivalProbability5Year(0.50);
-        updated.setRiskLevel("ELEVE");
+        updated.setRiskLevel(RiskLevel.HIGH);
         updated.seteGFRSlope(-5.0);
         updated.setCreatinineSlope(0.8);
         updated.setRejectionEpisodeCount(2);
@@ -166,7 +168,7 @@ class GraftSurvivalScoreServiceTest {
 
         GraftSurvivalScore saved = new GraftSurvivalScore();
         saved.setId(1L);
-        saved.setRiskLevel("ELEVE");
+        saved.setRiskLevel(RiskLevel.HIGH);
         saved.setSurvivalProbability1Year(0.80);
 
         when(repository.findById(1L)).thenReturn(Optional.of(sampleScore));
@@ -174,7 +176,7 @@ class GraftSurvivalScoreServiceTest {
 
         GraftSurvivalScore result = service.update(1L, updated);
 
-        assertThat(result.getRiskLevel()).isEqualTo("ELEVE");
+        assertThat(result.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(result.getSurvivalProbability1Year()).isEqualTo(0.80);
         verify(repository, times(1)).save(any(GraftSurvivalScore.class));
     }
@@ -199,14 +201,14 @@ class GraftSurvivalScoreServiceTest {
         GraftSurvivalScore critical = new GraftSurvivalScore();
         critical.setPatientId("patient-003");
         critical.setSurvivalProbability5Year(0.40);
-        critical.setRiskLevel("CRITIQUE");
+        critical.setRiskLevel(RiskLevel.CRITICAL);
         critical.setRejectionEpisodeCount(3);
         critical.setHasChronicDecline(true);
         when(repository.save(any())).thenReturn(critical);
 
         GraftSurvivalScore result = service.save(critical);
 
-        assertThat(result.getRiskLevel()).isEqualTo("CRITIQUE");
+        assertThat(result.getRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
         assertThat(result.getSurvivalProbability5Year()).isEqualTo(0.40);
     }
 }
