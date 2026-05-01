@@ -27,12 +27,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
-                    sh """
-                    mvn clean verify sonar:sonar \
-                    -Dsonar.projectKey=my-springboot-app \
-                    -Dsonar.host.url=http://host.docker.internal:9000
-                    -Dsonar.login=$SONAR_TOKEN
-                    """
+                    sh "mvn clean verify sonar:sonar -Dsonar.projectKey=my-springboot-app -Dsonar.host.url=http://host.docker.internal:9000 -Dsonar.login=$SONAR_TOKEN"
                 }
             }
         }
