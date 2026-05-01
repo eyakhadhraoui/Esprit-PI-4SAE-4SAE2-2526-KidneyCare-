@@ -5,7 +5,12 @@ pipeline {
         nodejs 'node20'
     }
 
+    environment {
+        SONAR_TOKEN = credentials('sonar-token-id')
+    }
+
     stages {
+
         stage('Install Dependencies') {
             steps {
                 sh 'npm install'
@@ -21,6 +26,22 @@ pipeline {
         stage('Build') {
             steps {
                 sh 'npm run build -- --configuration production'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube-server') {
+                    sh "npx sonar-scanner -Dsonar.projectKey=InfEtFoncFrontend -Dsonar.host.url=http://host.docker.internal:9000 -Dsonar.login=$SONAR_TOKEN"
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
     }
