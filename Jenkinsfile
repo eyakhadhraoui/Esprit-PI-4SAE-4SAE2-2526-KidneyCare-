@@ -4,10 +4,11 @@ pipeline {
     environment {
         SONAR_PROJECT_KEY = 'kidneycare-platform'
         SONAR_HOST_URL    = 'http://localhost:9000'
+        MAVEN_OPTS        = '-Xmx512m -XX:MaxMetaspaceSize=256m'
     }
 
     options {
-        timeout(time: 60, unit: 'MINUTES')
+        timeout(time: 120, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
@@ -54,42 +55,20 @@ pipeline {
         }
 
         stage('Tests') {
-            parallel {
-                stage('Test EurekaServer') {
-                    steps { dir('EurekaServer') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'EurekaServer/target/surefire-reports/*.xml' } }
-                }
-                stage('Test Gateway') {
-                    steps { dir('API') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'API/target/surefire-reports/*.xml' } }
-                }
-                stage('Test FoncGreffon') {
-                    steps { dir('FoncGreffon') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'FoncGreffon/target/surefire-reports/*.xml' } }
-                }
-                stage('Test InfectionEtVaccination') {
-                    steps { dir('InfectionEtVaccination') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'InfectionEtVaccination/target/surefire-reports/*.xml' } }
-                }
-                stage('Test NEPHRO') {
-                    steps { dir('NEPHRO') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'NEPHRO/target/surefire-reports/*.xml' } }
-                }
-                stage('Test Nutrition') {
-                    steps { dir('Nutrition_Service/Nutrition_Service') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'Nutrition_Service/Nutrition_Service/target/surefire-reports/*.xml' } }
-                }
-                stage('Test Prescription') {
-                    steps { dir('prescription-Service') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'prescription-Service/target/surefire-reports/*.xml' } }
-                }
-                stage('Test Consultation') {
-                    steps { dir('projetconsultation') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'projetconsultation/target/surefire-reports/*.xml' } }
-                }
-                stage('Test VitalParams') {
-                    steps { dir('projetparametrevital/projetparametrevital') { sh 'mvn test -B || true' } }
-                    post { always { junit allowEmptyResults: true, testResults: 'projetparametrevital/projetparametrevital/target/surefire-reports/*.xml' } }
+            steps {
+                sh 'cd EurekaServer && mvn test -B || true'
+                sh 'cd API && mvn test -B || true'
+                sh 'cd FoncGreffon && mvn test -B || true'
+                sh 'cd InfectionEtVaccination && mvn test -B || true'
+                sh 'cd NEPHRO && mvn test -B || true'
+                sh 'cd Nutrition_Service/Nutrition_Service && mvn test -B || true'
+                sh 'cd prescription-Service && mvn test -B || true'
+                sh 'cd projetconsultation && mvn test -B || true'
+                sh 'cd projetparametrevital/projetparametrevital && mvn test -B || true'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
                 }
             }
         }

@@ -149,16 +149,16 @@
     </div>
   </div>
 
-  <div class="vp-preview-overlay" *ngIf="previewRow" (click)="closeRowPreview()">
+  <div class="vp-preview-overlay" *ngIf="previewRow as row" (click)="closeRowPreview()">
     <div class="vp-preview-card" (click)="$event.stopPropagation()">
       <button type="button" class="vp-preview-close" (click)="closeRowPreview()">✕</button>
-      <h3>{{ previewRow.nom }}</h3>
-      <p class="vp-preview-meta"><strong>Unité :</strong> {{ previewRow.unite }}</p>
-      <p class="vp-preview-meta"><strong>Plage :</strong> {{ previewRow.plage }}</p>
-      <p class="vp-preview-meta"><strong>Type :</strong> {{ previewRow.typeLabel }}</p>
-      <p class="vp-preview-meta"><strong>Statut :</strong> {{ previewRow.statutLabel }}</p>
+      <h3>{{ row.nom }}</h3>
+      <p class="vp-preview-meta"><strong>Unité :</strong> {{ row.unite }}</p>
+      <p class="vp-preview-meta"><strong>Plage :</strong> {{ row.plage }}</p>
+      <p class="vp-preview-meta"><strong>Type :</strong> {{ row.typeLabel }}</p>
+      <p class="vp-preview-meta"><strong>Statut :</strong> {{ row.statutLabel }}</p>
       <div class="vp-preview-actions">
-        <button type="button" class="vp-btn-solid" (click)="editRow(previewRow)">Modifier</button>
+        <button type="button" class="vp-btn-solid" (click)="editRow(row)">Modifier</button>
       </div>
     </div>
   </div>

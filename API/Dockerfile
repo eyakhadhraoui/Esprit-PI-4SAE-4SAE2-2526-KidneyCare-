@@ -1,13 +1,18 @@
-# ─── Stage 1 : Build ───────────────────────────────────────────────────────
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+# Build stage
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
-COPY pom.xml ./
-COPY src ./src
-RUN mvn -B -Dmaven.test.skip=true package
+COPY pom.xml .
+COPY src src/
+RUN mvn clean package -Dmaven.test.skip=true -B
 
-# ─── Stage 2 : Runtime ─────────────────────────────────────────────────────
-FROM eclipse-temurin:17-jre-jammy
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=builder /app/target/API-0.0.1-SNAPSHOT.jar app.jar
+
 EXPOSE 8095
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+HEALTHCHECK --interval=15s --timeout=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8095/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
