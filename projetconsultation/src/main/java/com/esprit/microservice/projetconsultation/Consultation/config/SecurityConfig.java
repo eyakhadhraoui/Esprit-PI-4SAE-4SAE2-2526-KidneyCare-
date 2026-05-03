@@ -14,6 +14,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.context.annotation.Profile("!test")
 public class SecurityConfig {
 
     @Bean
