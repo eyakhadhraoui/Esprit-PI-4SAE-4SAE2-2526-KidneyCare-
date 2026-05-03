@@ -61,6 +61,7 @@ public class BesoinNutritionnel {
     @Column
     private LocalDate dateFin;  // NULL = actif
 
-    @Column(length = 1000)
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String notes;
 }
