@@ -1,41 +1,41 @@
 package org.example.foncgreffon.Entity;
 
-
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.foncgreffon.Repository.GraftFunctionEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 class GraftFunctionEntryIntegrationTest {
 
+    @LocalServerPort
+    private int port;
+
     @Autowired
-    private MockMvc mockMvc;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private GraftFunctionEntryRepository repository;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     private GraftFunctionEntry sampleEntry;
+
+    private String url(String path) {
+        return "http://localhost:" + port + path;
+    }
 
     @BeforeEach
     void setUp() {
@@ -48,27 +48,24 @@ class GraftFunctionEntryIntegrationTest {
         );
     }
 
-    // ── POST ──────────────────────────────────────────────────────────────────
-
     @Test
     @DisplayName("POST /api/graft-entries — creates entry and returns it")
-    void createEntry_shouldReturn201() throws Exception {
-        mockMvc.perform(post("/api/graft-entries")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(sampleEntry)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.patientId").value("patient-001"))
-                .andExpect(jsonPath("$.creatinine").value(1.2))
-                .andExpect(jsonPath("$.eGFR").value(55.0))
-                .andExpect(jsonPath("$.collectionType").value("ROUTINE"))
-                .andExpect(jsonPath("$.id").isNumber());
-    }
+    void createEntry_shouldReturn201() {
+        ResponseEntity<GraftFunctionEntry> response = restTemplate.postForEntity(
+                url("/api/graft-entries"), sampleEntry, GraftFunctionEntry.class);
 
-    // ── GET all ───────────────────────────────────────────────────────────────
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getPatientId()).isEqualTo("patient-001");
+        assertThat(response.getBody().getCreatinine()).isEqualTo(1.2);
+        assertThat(response.getBody().geteGFR()).isEqualTo(55.0);
+        assertThat(response.getBody().getCollectionType()).isEqualTo("ROUTINE");
+        assertThat(response.getBody().getId()).isNotNull();
+    }
 
     @Test
     @DisplayName("GET /api/graft-entries — returns all entries")
-    void getAllEntries_shouldReturnList() throws Exception {
+    void getAllEntries_shouldReturnList() {
         repository.save(sampleEntry);
         GraftFunctionEntry second = new GraftFunctionEntry(
                 "patient-002", LocalDate.now(),
@@ -78,38 +75,43 @@ class GraftFunctionEntryIntegrationTest {
         );
         repository.save(second);
 
-        mockMvc.perform(get("/api/graft-entries"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[*].patientId",
-                        containsInAnyOrder("patient-001", "patient-002")));
-    }
+        ResponseEntity<GraftFunctionEntry[]> response = restTemplate.getForEntity(
+                url("/api/graft-entries"), GraftFunctionEntry[].class);
 
-    // ── GET by id ─────────────────────────────────────────────────────────────
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        List<String> patientIds = Arrays.stream(response.getBody())
+                .map(GraftFunctionEntry::getPatientId)
+                .toList();
+        assertThat(patientIds).containsExactlyInAnyOrder("patient-001", "patient-002");
+    }
 
     @Test
     @DisplayName("GET /api/graft-entries/{id} — returns entry when found")
-    void getById_shouldReturnEntry() throws Exception {
+    void getById_shouldReturnEntry() {
         GraftFunctionEntry saved = repository.save(sampleEntry);
 
-        mockMvc.perform(get("/api/graft-entries/" + saved.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.patientId").value("patient-001"))
-                .andExpect(jsonPath("$.eGFR").value(55.0));
+        ResponseEntity<GraftFunctionEntry> response = restTemplate.getForEntity(
+                url("/api/graft-entries/" + saved.getId()), GraftFunctionEntry.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getPatientId()).isEqualTo("patient-001");
+        assertThat(response.getBody().geteGFR()).isEqualTo(55.0);
     }
 
     @Test
     @DisplayName("GET /api/graft-entries/{id} — returns 404 when not found")
-    void getById_shouldReturn404() throws Exception {
-        mockMvc.perform(get("/api/graft-entries/99999"))
-                .andExpect(status().isNotFound());
-    }
+    void getById_shouldReturn404() {
+        ResponseEntity<Void> response = restTemplate.getForEntity(
+                url("/api/graft-entries/99999"), Void.class);
 
-    // ── GET by patientId ──────────────────────────────────────────────────────
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
 
     @Test
     @DisplayName("GET /api/graft-entries/patient/{patientId} — returns patient entries ordered by date desc")
-    void getByPatientId_shouldReturnOrderedEntries() throws Exception {
+    void getByPatientId_shouldReturnOrderedEntries() {
         GraftFunctionEntry older = new GraftFunctionEntry(
                 "patient-001", LocalDate.of(2024, 1, 1),
                 1.0, 60.0, 1600.0, 7.5,
@@ -125,19 +127,19 @@ class GraftFunctionEntryIntegrationTest {
         repository.save(older);
         repository.save(newer);
 
-        mockMvc.perform(get("/api/graft-entries/patient/patient-001"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                // most recent first
-                .andExpect(jsonPath("$[0].measurementDate").value("2024-06-01"))
-                .andExpect(jsonPath("$[1].measurementDate").value("2024-01-01"));
-    }
+        ResponseEntity<GraftFunctionEntry[]> response = restTemplate.getForEntity(
+                url("/api/graft-entries/patient/patient-001"), GraftFunctionEntry[].class);
 
-    // ── PUT ───────────────────────────────────────────────────────────────────
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()[0].getMeasurementDate()).isEqualTo(LocalDate.of(2024, 6, 1));
+        assertThat(response.getBody()[1].getMeasurementDate()).isEqualTo(LocalDate.of(2024, 1, 1));
+    }
 
     @Test
     @DisplayName("PUT /api/graft-entries/{id} — updates entry fields")
-    void updateEntry_shouldReturnUpdated() throws Exception {
+    void updateEntry_shouldReturnUpdated() {
         GraftFunctionEntry saved = repository.save(sampleEntry);
 
         GraftFunctionEntry payload = new GraftFunctionEntry(
@@ -147,35 +149,41 @@ class GraftFunctionEntryIntegrationTest {
                 "URGENT", "Creatinine spike", LocalDateTime.now()
         );
 
-        mockMvc.perform(put("/api/graft-entries/" + saved.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(payload)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.creatinine").value(2.0))
-                .andExpect(jsonPath("$.eGFR").value(35.0))
-                .andExpect(jsonPath("$.collectionType").value("URGENT"));
+        HttpEntity<GraftFunctionEntry> request = new HttpEntity<>(payload);
+        ResponseEntity<GraftFunctionEntry> response = restTemplate.exchange(
+                url("/api/graft-entries/" + saved.getId()),
+                HttpMethod.PUT, request, GraftFunctionEntry.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getCreatinine()).isEqualTo(2.0);
+        assertThat(response.getBody().geteGFR()).isEqualTo(35.0);
+        assertThat(response.getBody().getCollectionType()).isEqualTo("URGENT");
     }
 
     @Test
     @DisplayName("PUT /api/graft-entries/{id} — returns 404 when not found")
-    void updateEntry_shouldReturn404WhenNotFound() throws Exception {
-        mockMvc.perform(put("/api/graft-entries/99999")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(sampleEntry)))
-                .andExpect(status().isNotFound());
-    }
+    void updateEntry_shouldReturn404WhenNotFound() {
+        HttpEntity<GraftFunctionEntry> request = new HttpEntity<>(sampleEntry);
+        ResponseEntity<Void> response = restTemplate.exchange(
+                url("/api/graft-entries/99999"),
+                HttpMethod.PUT, request, Void.class);
 
-    // ── DELETE ────────────────────────────────────────────────────────────────
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
 
     @Test
     @DisplayName("DELETE /api/graft-entries/{id} — deletes and confirms removal")
-    void deleteEntry_shouldReturn204AndRemove() throws Exception {
+    void deleteEntry_shouldReturn204AndRemove() {
         GraftFunctionEntry saved = repository.save(sampleEntry);
 
-        mockMvc.perform(delete("/api/graft-entries/" + saved.getId()))
-                .andExpect(status().isNoContent());
+        ResponseEntity<Void> deleteResponse = restTemplate.exchange(
+                url("/api/graft-entries/" + saved.getId()),
+                HttpMethod.DELETE, null, Void.class);
+        assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-        mockMvc.perform(get("/api/graft-entries/" + saved.getId()))
-                .andExpect(status().isNotFound());
+        ResponseEntity<Void> getResponse = restTemplate.getForEntity(
+                url("/api/graft-entries/" + saved.getId()), Void.class);
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 }
