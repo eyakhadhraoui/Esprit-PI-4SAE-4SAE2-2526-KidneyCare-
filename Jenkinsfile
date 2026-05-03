@@ -12,6 +12,12 @@ pipeline {
 
     stages {
 
+        stage('Fix Docker Socket') {
+            steps {
+                sh 'chmod 666 /var/run/docker.sock || true'
+            }
+        }
+
         stage('Build') {
             steps {
                 sh 'mvn clean compile'
@@ -28,8 +34,8 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
-                  -v $(pwd):/scripts \
-                  grafana/k6 run /scripts/test.js
+                  --volumes-from jenkins \
+                  grafana/k6 run /var/jenkins_home/workspace/FoncGreffonCI/test.js
                 '''
             }
         }
