@@ -24,6 +24,16 @@ pipeline {
             }
         }
 
+        stage('Load Test (k6)') {
+            steps {
+                sh '''
+                docker run --rm \
+                  -v $(pwd):/scripts \
+                  grafana/k6 run /scripts/test.js
+                '''
+            }
+        }
+
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
