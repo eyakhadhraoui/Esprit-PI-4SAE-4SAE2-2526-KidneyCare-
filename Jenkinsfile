@@ -30,17 +30,18 @@ pipeline {
             }
         }
 
-       stage('Load Test (k6)') {
-           steps {
-               sh '''
-               docker run --rm \
-                 --volumes-from jenkins \
-                 grafana/k6 run \
-                 --out influxdb=http://host.docker.internal:8086/k6 \
-                 /var/jenkins_home/workspace/FoncGreffonCI/test.js
-               '''
-           }
-       }
+stage('Load Test (k6)') {
+    steps {
+        sh '''
+        docker run --rm \
+          --volumes-from jenkins \
+          --network monitoring \
+          grafana/k6 run \
+          --out influxdb=http://influxdb:8086/k6 \
+          /var/jenkins_home/workspace/FoncGreffonCI/test.js
+        '''
+    }
+}
 
         stage('SonarQube Analysis') {
             steps {
