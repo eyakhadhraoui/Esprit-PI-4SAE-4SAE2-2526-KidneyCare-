@@ -3,14 +3,17 @@ pipeline {
 
     environment {
         SONAR_PROJECT_KEY = 'kidneycare-platform'
-        SONAR_HOST_URL    = 'http://localhost:9000'
+        SONAR_HOST_URL    = "${env.SONAR_HOST_URL ?: 'http://localhost:9000'}"
+        /* JVM: évite de lancer 9+ JVM Maven géantes en parallèle (réduit le swap / le temps réel) */
         MAVEN_OPTS        = '-Xmx512m -XX:MaxMetaspaceSize=256m'
+        DOCKER_BUILDKIT   = '1'
     }
 
     options {
-        timeout(time: 120, unit: 'MINUTES')
+        timeout(time: 90, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
     }
 
     stages {
@@ -22,139 +25,124 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        /*
+         * Un seul passage Maven par service : compile + tests + package (évite l’ancien enchaînement
+         * clean package -DskipTests puis mvn test, qui doublait quasiment le travail).
+         */
+        stage('Build & Test — batch 1') {
             parallel {
                 stage('EurekaServer') {
-                    steps { dir('EurekaServer') { sh 'mvn clean package -DskipTests -B' } }
+                    steps { dir('EurekaServer') { sh 'mvn verify -B' } }
                 }
-                stage('Gateway') {
-                    steps { dir('API') { sh 'mvn clean package -DskipTests -B' } }
+                stage('Gateway (API)') {
+                    steps { dir('API') { sh 'mvn verify -B' } }
                 }
                 stage('FoncGreffon') {
-                    steps { dir('FoncGreffon') { sh 'mvn clean package -DskipTests -B' } }
+                    steps { dir('FoncGreffon') { sh 'mvn verify -B' } }
                 }
                 stage('InfectionEtVaccination') {
-                    steps { dir('InfectionEtVaccination') { sh 'mvn clean package -DskipTests -B' } }
+                    steps { dir('InfectionEtVaccination') { sh 'mvn verify -B' } }
                 }
                 stage('NEPHRO') {
-                    steps { dir('NEPHRO') { sh 'mvn clean package -DskipTests -B' } }
-                }
-                stage('Nutrition') {
-                    steps { dir('Nutrition_Service/Nutrition_Service') { sh 'mvn clean package -DskipTests -B' } }
-                }
-                stage('Prescription') {
-                    steps { dir('prescription-Service') { sh 'mvn clean package -DskipTests -B' } }
-                }
-                stage('Consultation') {
-                    steps { dir('projetconsultation') { sh 'mvn clean package -DskipTests -B' } }
-                }
-                stage('VitalParams') {
-                    steps { dir('projetparametrevital/projetparametrevital') { sh 'mvn clean package -DskipTests -B' } }
+                    steps { dir('NEPHRO') { sh 'mvn verify -B' } }
                 }
             }
         }
 
-        stage('Tests') {
-            steps {
-                sh 'cd EurekaServer && mvn test -B || true'
-                sh 'cd API && mvn test -B || true'
-                sh 'cd FoncGreffon && mvn test -B || true'
-                sh 'cd InfectionEtVaccination && mvn test -B || true'
-                sh 'cd NEPHRO && mvn test -B || true'
-                sh 'cd Nutrition_Service/Nutrition_Service && mvn test -B || true'
-                sh 'cd prescription-Service && mvn test -B || true'
-                sh 'cd projetconsultation && mvn test -B || true'
-                sh 'cd projetparametrevital/projetparametrevital && mvn test -B || true'
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
+        stage('Build & Test — batch 2') {
             parallel {
-                stage('Sonar-EurekaServer') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                stage('Nutrition_Service') {
+                    steps { dir('Nutrition_Service/Nutrition_Service') { sh 'mvn verify -B' } }
+                }
+                stage('prescription-Service') {
+                    steps { dir('prescription-Service') { sh 'mvn verify -B' } }
+                }
+                stage('projetconsultation') {
+                    steps { dir('projetconsultation') { sh 'mvn verify -B' } }
+                }
+                stage('projetparametrevital') {
+                    steps { dir('projetparametrevital/projetparametrevital') { sh 'mvn verify -B' } }
+                }
+            }
+        }
+
+        stage('JUnit reports') {
+            steps {
+                junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+            }
+        }
+
+        /*
+         * Sonar : 3 analyses en parallèle max par vague (au lieu de 9) pour ne pas saturer CPU / Sonar.
+         */
+        stage('SonarQube — wave 1') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    parallel(
+                        'Sonar-EurekaServer': {
                             dir('EurekaServer') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-eureka -Dsonar.projectName='KidneyCare - EurekaServer'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-eureka -Dsonar.projectName='KidneyCare - EurekaServer'"
                             }
-                        }
-                    }
-                }
-                stage('Sonar-Gateway') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                        },
+                        'Sonar-Gateway': {
                             dir('API') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-gateway -Dsonar.projectName='KidneyCare - Gateway'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-gateway -Dsonar.projectName='KidneyCare - Gateway'"
                             }
-                        }
-                    }
-                }
-                stage('Sonar-FoncGreffon') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                        },
+                        'Sonar-FoncGreffon': {
                             dir('FoncGreffon') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-graft -Dsonar.projectName='KidneyCare - FoncGreffon'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-graft -Dsonar.projectName='KidneyCare - FoncGreffon'"
                             }
                         }
-                    }
+                    )
                 }
-                stage('Sonar-Infection') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+            }
+        }
+
+        stage('SonarQube — wave 2') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    parallel(
+                        'Sonar-Infection': {
                             dir('InfectionEtVaccination') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-infection -Dsonar.projectName='KidneyCare - Infection'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-infection -Dsonar.projectName='KidneyCare - InfectionEtVaccination'"
                             }
-                        }
-                    }
-                }
-                stage('Sonar-NEPHRO') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                        },
+                        'Sonar-NEPHRO': {
                             dir('NEPHRO') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-nephro -Dsonar.projectName='KidneyCare - NEPHRO'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-nephro -Dsonar.projectName='KidneyCare - NEPHRO'"
                             }
-                        }
-                    }
-                }
-                stage('Sonar-Nutrition') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                        },
+                        'Sonar-Nutrition': {
                             dir('Nutrition_Service/Nutrition_Service') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-nutrition -Dsonar.projectName='KidneyCare - Nutrition'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-nutrition -Dsonar.projectName='KidneyCare - Nutrition'"
                             }
                         }
-                    }
+                    )
                 }
-                stage('Sonar-Prescription') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+            }
+        }
+
+        stage('SonarQube — wave 3') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    parallel(
+                        'Sonar-Prescription': {
                             dir('prescription-Service') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-prescription -Dsonar.projectName='KidneyCare - Prescription'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-prescription -Dsonar.projectName='KidneyCare - Prescription'"
                             }
-                        }
-                    }
-                }
-                stage('Sonar-Consultation') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                        },
+                        'Sonar-Consultation': {
                             dir('projetconsultation') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-consultation -Dsonar.projectName='KidneyCare - Consultation'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-consultation -Dsonar.projectName='KidneyCare - Consultation'"
                             }
-                        }
-                    }
-                }
-                stage('Sonar-VitalParams') {
-                    steps {
-                        withSonarQubeEnv('SonarQube') {
+                        },
+                        'Sonar-VitalParams': {
                             dir('projetparametrevital/projetparametrevital') {
-                                sh "mvn sonar:sonar -B -Dsonar.projectKey=kidneycare-platform-vitalparams -Dsonar.projectName='KidneyCare - VitalParams'"
+                                sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-vitalparams -Dsonar.projectName='KidneyCare - VitalParams'"
                             }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -193,16 +181,14 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline termine - statut : ${currentBuild.currentResult}"
+            echo "Pipeline terminé — statut : ${currentBuild.currentResult}"
         }
         success {
-            echo "Tous les services deployes avec succes !"
+            echo "Tous les services déployés avec succès !"
         }
         failure {
-            echo "Pipeline echoue - consultez les logs ci-dessus."
+            echo "Pipeline échoué — consultez les logs ci-dessus."
         }
-        cleanup {
-            cleanWs()
-        }
+        /* Ne pas effacer le workspace à chaque build : le dépôt .m2 sur l’agent + sources réutilisées accélèrent fortement les builds suivants. */
     }
 }
