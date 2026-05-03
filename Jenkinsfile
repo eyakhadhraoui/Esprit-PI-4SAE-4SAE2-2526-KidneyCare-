@@ -73,76 +73,101 @@ pipeline {
         }
 
         /*
-         * Sonar : 3 analyses en parallèle max par vague (au lieu de 9) pour ne pas saturer CPU / Sonar.
+         * Sonar : 3 analyses en parallèle par vague. Syntaxe déclarative obligatoire :
+         * parallel { stage('…') { steps { … } } } — pas de parallel() dans steps { }.
          */
         stage('SonarQube — wave 1') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    parallel(
-                        'Sonar-EurekaServer': {
+            parallel {
+                stage('Sonar-EurekaServer') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('EurekaServer') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-eureka -Dsonar.projectName='KidneyCare - EurekaServer'"
                             }
-                        },
-                        'Sonar-Gateway': {
+                        }
+                    }
+                }
+                stage('Sonar-Gateway') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('API') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-gateway -Dsonar.projectName='KidneyCare - Gateway'"
                             }
-                        },
-                        'Sonar-FoncGreffon': {
+                        }
+                    }
+                }
+                stage('Sonar-FoncGreffon') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('FoncGreffon') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-graft -Dsonar.projectName='KidneyCare - FoncGreffon'"
                             }
                         }
-                    )
+                    }
                 }
             }
         }
 
         stage('SonarQube — wave 2') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    parallel(
-                        'Sonar-Infection': {
+            parallel {
+                stage('Sonar-Infection') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('InfectionEtVaccination') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-infection -Dsonar.projectName='KidneyCare - InfectionEtVaccination'"
                             }
-                        },
-                        'Sonar-NEPHRO': {
+                        }
+                    }
+                }
+                stage('Sonar-NEPHRO') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('NEPHRO') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-nephro -Dsonar.projectName='KidneyCare - NEPHRO'"
                             }
-                        },
-                        'Sonar-Nutrition': {
+                        }
+                    }
+                }
+                stage('Sonar-Nutrition') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('Nutrition_Service/Nutrition_Service') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-nutrition -Dsonar.projectName='KidneyCare - Nutrition'"
                             }
                         }
-                    )
+                    }
                 }
             }
         }
 
         stage('SonarQube — wave 3') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    parallel(
-                        'Sonar-Prescription': {
+            parallel {
+                stage('Sonar-Prescription') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('prescription-Service') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-prescription -Dsonar.projectName='KidneyCare - Prescription'"
                             }
-                        },
-                        'Sonar-Consultation': {
+                        }
+                    }
+                }
+                stage('Sonar-Consultation') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('projetconsultation') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-consultation -Dsonar.projectName='KidneyCare - Consultation'"
                             }
-                        },
-                        'Sonar-VitalParams': {
+                        }
+                    }
+                }
+                stage('Sonar-VitalParams') {
+                    steps {
+                        withSonarQubeEnv('SonarQube') {
                             dir('projetparametrevital/projetparametrevital') {
                                 sh "mvn sonar:sonar -B -Dsonar.projectKey=${SONAR_PROJECT_KEY}-vitalparams -Dsonar.projectName='KidneyCare - VitalParams'"
                             }
                         }
-                    )
+                    }
                 }
             }
         }
