@@ -87,7 +87,17 @@ pipeline {
 
         stage('JUnit reports') {
             steps {
-                junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                junit allowEmptyResults: true, testResults: [
+                    'EurekaServer/target/surefire-reports/*.xml',
+                    'API/target/surefire-reports/*.xml',
+                    'FoncGreffon/target/surefire-reports/*.xml',
+                    'InfectionEtVaccination/target/surefire-reports/*.xml',
+                    'NEPHRO/target/surefire-reports/*.xml',
+                    'Nutrition_Service/Nutrition_Service/target/surefire-reports/*.xml',
+                    'prescription-Service/target/surefire-reports/*.xml',
+                    'projetconsultation/target/surefire-reports/*.xml',
+                    'projetparametrevital/projetparametrevital/target/surefire-reports/*.xml'
+                ].join(',')
             }
         }
 
