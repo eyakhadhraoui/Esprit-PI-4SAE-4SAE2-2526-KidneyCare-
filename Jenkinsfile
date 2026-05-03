@@ -4,9 +4,11 @@ pipeline {
     environment {
         SONAR_PROJECT_KEY = 'kidneycare-platform'
         SONAR_HOST_URL    = "${env.SONAR_HOST_URL ?: 'http://localhost:9000'}"
-        /* JVM: évite de lancer 9+ JVM Maven géantes en parallèle (réduit le swap / le temps réel) */
-        MAVEN_OPTS        = '-Xmx512m -XX:MaxMetaspaceSize=256m'
-        DOCKER_BUILDKIT   = '1'
+        /* JVM Maven (processus principal). Les tests Surefire forkent une autre JVM — trop de forks en parallèle = blocage. */
+        MAVEN_OPTS           = '-Xmx512m -XX:MaxMetaspaceSize=256m'
+        DOCKER_BUILDKIT      = '1'
+        /* Arrête un module de test bloqué au lieu d’attendre indéfiniment (Surefire, en secondes). */
+        MAVEN_VERIFY_EXTRA   = '-B -DforkedProcessTimeoutInSeconds=900'
     }
 
     options {
@@ -26,42 +28,59 @@ pipeline {
         }
 
         /*
-         * Un seul passage Maven par service : compile + tests + package (évite l’ancien enchaînement
-         * clean package -DskipTests puis mvn test, qui doublait quasiment le travail).
+         * mvn verify : compile + tests + package.
+         * Au plus 2 modules en parallèle : sur une petite VM, 5× Spring Boot en parallèle peut
+         * saturer la RAM (swap) et figer les tests pendant des dizaines de minutes sans log.
+         * MAVEN_VERIFY_EXTRA : timeout Surefire par module (900 s) pour éviter un hang infini.
          */
         stage('Build & Test — batch 1') {
             parallel {
                 stage('EurekaServer') {
-                    steps { dir('EurekaServer') { sh 'mvn verify -B' } }
+                    steps { dir('EurekaServer') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
                 }
                 stage('Gateway (API)') {
-                    steps { dir('API') { sh 'mvn verify -B' } }
-                }
-                stage('FoncGreffon') {
-                    steps { dir('FoncGreffon') { sh 'mvn verify -B' } }
-                }
-                stage('InfectionEtVaccination') {
-                    steps { dir('InfectionEtVaccination') { sh 'mvn verify -B' } }
-                }
-                stage('NEPHRO') {
-                    steps { dir('NEPHRO') { sh 'mvn verify -B' } }
+                    steps { dir('API') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
                 }
             }
         }
 
         stage('Build & Test — batch 2') {
             parallel {
-                stage('Nutrition_Service') {
-                    steps { dir('Nutrition_Service/Nutrition_Service') { sh 'mvn verify -B' } }
+                stage('FoncGreffon') {
+                    steps { dir('FoncGreffon') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
                 }
+                stage('InfectionEtVaccination') {
+                    steps { dir('InfectionEtVaccination') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
+                }
+            }
+        }
+
+        stage('Build & Test — batch 3') {
+            parallel {
+                stage('NEPHRO') {
+                    steps { dir('NEPHRO') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
+                }
+                stage('Nutrition_Service') {
+                    steps { dir('Nutrition_Service/Nutrition_Service') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
+                }
+            }
+        }
+
+        stage('Build & Test — batch 4') {
+            parallel {
                 stage('prescription-Service') {
-                    steps { dir('prescription-Service') { sh 'mvn verify -B' } }
+                    steps { dir('prescription-Service') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
                 }
                 stage('projetconsultation') {
-                    steps { dir('projetconsultation') { sh 'mvn verify -B' } }
+                    steps { dir('projetconsultation') { sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}" } }
                 }
-                stage('projetparametrevital') {
-                    steps { dir('projetparametrevital/projetparametrevital') { sh 'mvn verify -B' } }
+            }
+        }
+
+        stage('Build & Test — batch 5') {
+            steps {
+                dir('projetparametrevital/projetparametrevital') {
+                    sh "mvn verify ${env.MAVEN_VERIFY_EXTRA}"
                 }
             }
         }
