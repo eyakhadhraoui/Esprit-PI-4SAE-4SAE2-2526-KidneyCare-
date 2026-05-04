@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        SONAR_PROJECT_KEY    = ‘kidneycare-platform’
+        SONAR_PROJECT_KEY    = 'kidneycare-platform'
         MAVEN_OPTS           = '-Xmx512m -XX:MaxMetaspaceSize=256m'
-        DOCKER_BUILDKIT      = ‘1’
-        MAVEN_VERIFY_EXTRA   = ‘-B -DforkedProcessTimeoutInSeconds=900’
+        DOCKER_BUILDKIT      = '1'
+        MAVEN_VERIFY_EXTRA   = '-B -DforkedProcessTimeoutInSeconds=900'
     }
 
     options {
