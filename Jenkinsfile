@@ -2,11 +2,9 @@ pipeline {
     agent any
 
     environment {
-        SONAR_PROJECT_KEY = ‘kidneycare-platform’
-        /* JVM Maven (processus principal). Les tests Surefire forkent une autre JVM — trop de forks en parallèle = blocage. */
+        SONAR_PROJECT_KEY    = ‘kidneycare-platform’
         MAVEN_OPTS           = ‘-Xmx512m -XX:MaxMetaspaceSize=256m’
         DOCKER_BUILDKIT      = ‘1’
-        /* Arrête un module de test bloqué au lieu d’attendre indéfiniment (Surefire, en secondes). */
         MAVEN_VERIFY_EXTRA   = ‘-B -DforkedProcessTimeoutInSeconds=900’
     }
 
@@ -26,12 +24,6 @@ pipeline {
             }
         }
 
-        /*
-         * mvn verify : compile + tests + package.
-         * Au plus 2 modules en parallèle : sur une petite VM, 5× Spring Boot en parallèle peut
-         * saturer la RAM (swap) et figer les tests pendant des dizaines de minutes sans log.
-         * MAVEN_VERIFY_EXTRA : timeout Surefire par module (900 s) pour éviter un hang infini.
-         */
         stage('Build & Test — batch 1') {
             parallel {
                 stage('EurekaServer') {
@@ -100,7 +92,6 @@ pipeline {
             }
         }
 
-        /* Wave 1 : petits modules (Eureka, Gateway, FoncGreffon) — analyses légères, safe en parallèle. */
         stage('SonarQube — wave 1') {
             parallel {
                 stage('Sonar-EurekaServer') {
@@ -235,6 +226,5 @@ pipeline {
         failure {
             echo "Pipeline échoué — consultez les logs ci-dessus."
         }
-        /* Ne pas effacer le workspace à chaque build : le dépôt .m2 sur l’agent + sources réutilisées accélèrent fortement les builds suivants. */
     }
 }
