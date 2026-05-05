@@ -43,6 +43,22 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube-server') {
+                    sh "mvn clean verify sonar:sonar -Dsonar.projectKey=my-springboot-app -Dsonar.host.url=http://host.docker.internal:9000 -Dsonar.login=$SONAR_TOKEN"
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
         stage('Syft SBOM Analysis') {
             steps {
                 sh '''
@@ -56,22 +72,6 @@ pipeline {
             post {
                 always {
                     archiveArtifacts artifacts: 'syft-report.txt', fingerprint: true
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sonarqube-server') {
-                    sh "mvn clean verify sonar:sonar -Dsonar.projectKey=my-springboot-app -Dsonar.host.url=http://host.docker.internal:9000 -Dsonar.login=$SONAR_TOKEN"
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
                 }
             }
         }
