@@ -1,11 +1,7 @@
-﻿# Stage 1: Build the application
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
-WORKDIR /app
-COPY . .
-RUN chmod +x mvnw && ./mvnw clean package -DskipTests
-
+# Stage 1 supprimé - Maven tourne dans Jenkins Pipeline
 # Stage 2: Run the application
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
+RUN apk add --no-cache curl
+COPY target/*.jar app.jar
 CMD ["java", "-jar", "app.jar"]
