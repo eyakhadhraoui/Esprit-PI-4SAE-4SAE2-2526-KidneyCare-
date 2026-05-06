@@ -12,8 +12,8 @@ Set-Location $root
 
 $images = @{
     "eureka"                 = @{ Context = "demo";                                  Tag = "kidneycare/eureka:latest" }
-    "api-gateway"            = @{ Context = "demo1";                                 Tag = "kidneycare/api-gateway:latest" }
-    "nephro"                 = @{ Context = "NEPHRO";                                Tag = "kidneycare/nephro:latest" }
+    "api-gateway"            = @{ Context = "TestBilan";                             Tag = "kidneycare/api-gateway:latest" }
+    "nephro"                 = @{ Context = "DossierMedicale";                       Tag = "kidneycare/nephro:latest" }
     "consultation"           = @{ Context = "projetconsultation";                    Tag = "kidneycare/consultation:latest" }
     "parametrevital"         = @{ Context = "projetparametrevital/projetparametrevital"; Tag = "kidneycare/parametrevital:latest" }
     "infection-vaccination"  = @{ Context = "InfectionEtVaccination";                 Tag = "kidneycare/infection-vaccination:latest" }

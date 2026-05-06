@@ -52,7 +52,7 @@ public class GraftFunctionEntryService {
         repository.deleteById(id);
     }
 
-    public GraftFunctionEntry update(Long id, GraftFunctionEntry updated) {
+    public Optional<GraftFunctionEntry> update(Long id, GraftFunctionEntry updated) {
         return repository.findById(id).map(entry -> {
             entry.setMeasurementDate(updated.getMeasurementDate());
             entry.setCreatinine(updated.getCreatinine());
@@ -66,6 +66,6 @@ public class GraftFunctionEntryService {
             entry.setCollectionType(updated.getCollectionType());
             entry.setNotes(updated.getNotes());
             return repository.save(entry);
-        }).orElseThrow(() -> new RuntimeException("GraftFunctionEntry not found: " + id));
+        });
     }
 }

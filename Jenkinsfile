@@ -23,8 +23,8 @@ pipeline {
                 script {
                     def serviceModules = [
                         'demo',
-                        'demo1',
-                        'NEPHRO',
+                        'TestBilan',
+                        'DossierMedicale',
                         'InfectionEtVaccination',
                         'projetconsultation',
                         'prescription-Service',
@@ -42,15 +42,66 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        stage('Tests unitaires - demo') {
             steps {
-                script {
-                    def testModules = ['NEPHRO']
-                    testModules.each { module ->
-                        dir(module) {
-                            sh 'mvn test'
-                        }
-                    }
+                dir('demo') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - TestBilan') {
+            steps {
+                dir('TestBilan') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - DossierMedicale') {
+            steps {
+                dir('DossierMedicale') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - InfectionEtVaccination') {
+            steps {
+                dir('InfectionEtVaccination') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - projetconsultation') {
+            steps {
+                dir('projetconsultation') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - projetparametrevital') {
+            steps {
+                dir('projetparametrevital/projetparametrevital') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - Nutrition_Service') {
+            steps {
+                dir('Nutrition_Service/Nutrition_Service') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - FoncGreffon') {
+            steps {
+                dir('FoncGreffon') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - prescription-Service') {
+            steps {
+                dir('prescription-Service') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+        stage('Tests unitaires - API Gateway') {
+            steps {
+                dir('wetransfer_api_2026-03-24_1825/API') { sh 'mvn -B test -DfailIfNoTests=false' }
+            }
+        }
+
+        // Frontend Angular (Vitest) — Node/npm requis sur l’agent Jenkins
+        stage('Tests unitaires - frontend (mon-projet)') {
+            environment {
+                CI = 'true'
+            }
+            steps {
+                dir('mon-projet') {
+                    sh 'npm ci'
+                    sh 'npx ng test --watch=false'
                 }
             }
         }
@@ -61,8 +112,8 @@ pipeline {
                     script {
                         def serviceModules = [
                             'demo',
-                            'demo1',
-                            'NEPHRO',
+                            'TestBilan',
+                            'DossierMedicale',
                             'projetconsultation',
                             'InfectionEtVaccination',
                             'projetparametrevital/projetparametrevital',
@@ -76,6 +127,11 @@ pipeline {
                                 sh 'mvn sonar:sonar'
                             }
                         }
+                        // Frontend Angular / TS (sonar-project.properties + sonarqube-scanner)
+                        dir('mon-projet') {
+                            sh 'npm ci'
+                            sh 'npm run sonar'
+                        }
                     }
                 }
             }
@@ -86,8 +142,8 @@ pipeline {
                 script {
                     def serviceModules = [
                         'demo',
-                        'demo1',
-                        'NEPHRO',
+                        'TestBilan',
+                        'DossierMedicale',
                         'projetconsultation',
                         'InfectionEtVaccination',
                         'projetparametrevital/projetparametrevital',
@@ -109,9 +165,50 @@ pipeline {
         // --build : force le rebuild des images avec les nouveaux JARs Maven
         stage('Docker Compose Restart') {
             steps {
-                sh '''
-                    docker-compose up -d --build
-                '''
+                timeout(time: 30, unit: 'MINUTES') {
+                    sh '''
+                        set -e
+
+                        # Support both Docker Compose v2 plugin and legacy binary.
+                        if docker compose version >/dev/null 2>&1; then
+                          COMPOSE_CMD="docker compose"
+                        elif docker-compose version >/dev/null 2>&1; then
+                          COMPOSE_CMD="docker-compose"
+                        else
+                          echo "ERROR: Docker Compose is not installed on this Jenkins agent."
+                          exit 1
+                        fi
+
+                        echo "Using compose command: ${COMPOSE_CMD}"
+
+                        # Accélère les builds : cache BuildKit + construction des services en parallèle
+                        export DOCKER_BUILDKIT=1
+                        export COMPOSE_DOCKER_CLI_BUILD=1
+                        export BUILDKIT_PROGRESS=plain
+
+                        ${COMPOSE_CMD} config >/dev/null
+                        ${COMPOSE_CMD} down --remove-orphans || true
+
+                        # Build séparé (parallèle) puis démarrage — plus rapide que `up --build` tout-en-un
+                        ${COMPOSE_CMD} build --parallel
+                        ${COMPOSE_CMD} up -d --remove-orphans
+                        ${COMPOSE_CMD} ps
+                    '''
+                }
+            }
+            post {
+                failure {
+                    sh '''
+                        set +e
+                        if docker compose version >/dev/null 2>&1; then
+                          docker compose ps
+                          docker compose logs --tail=150
+                        elif docker-compose version >/dev/null 2>&1; then
+                          docker-compose ps
+                          docker-compose logs --tail=150
+                        fi
+                    '''
+                }
             }
         }
 
@@ -169,8 +266,8 @@ pipeline {
                     eval "$(minikube -p minikube docker-env)"
 
                     docker build -t kidneycare/eureka:latest                demo
-                    docker build -t kidneycare/api-gateway:latest            demo1
-                    docker build -t kidneycare/nephro:latest                 NEPHRO
+                    docker build -t kidneycare/api-gateway:latest            TestBilan
+                    docker build -t kidneycare/nephro:latest                 DossierMedicale
                     docker build -t kidneycare/consultation:latest           projetconsultation
                     docker build -t kidneycare/parametrevital:latest         projetparametrevital/projetparametrevital
                     docker build -t kidneycare/infection-vaccination:latest  InfectionEtVaccination
@@ -203,6 +300,9 @@ pipeline {
     }
 
     post {
+        always {
+            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+        }
         success {
             echo '✅ Pipeline terminée avec succès.'
         }

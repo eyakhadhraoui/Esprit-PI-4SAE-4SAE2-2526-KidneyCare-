@@ -1,8 +1,7 @@
 package org.example.foncgreffon.Entity;
 
-
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kidneycare.testsupport.MysqlSpringBootSupport;
 import org.example.foncgreffon.Repository.GraftFunctionEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class GraftFunctionEntryIntegrationTest {
+class GraftFunctionEntryIntegrationTest extends MysqlSpringBootSupport {
 
     @Autowired
     private MockMvc mockMvc;
@@ -128,9 +127,13 @@ class GraftFunctionEntryIntegrationTest {
         mockMvc.perform(get("/api/graft-entries/patient/patient-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
-                // most recent first
-                .andExpect(jsonPath("$[0].measurementDate").value("2024-06-01"))
-                .andExpect(jsonPath("$[1].measurementDate").value("2024-01-01"));
+                // most recent first (Jackson sérialise LocalDate en tableau [année, mois, jour])
+                .andExpect(jsonPath("$[0].measurementDate[0]").value(2024))
+                .andExpect(jsonPath("$[0].measurementDate[1]").value(6))
+                .andExpect(jsonPath("$[0].measurementDate[2]").value(1))
+                .andExpect(jsonPath("$[1].measurementDate[0]").value(2024))
+                .andExpect(jsonPath("$[1].measurementDate[1]").value(1))
+                .andExpect(jsonPath("$[1].measurementDate[2]").value(1));
     }
 
     // ── PUT ───────────────────────────────────────────────────────────────────

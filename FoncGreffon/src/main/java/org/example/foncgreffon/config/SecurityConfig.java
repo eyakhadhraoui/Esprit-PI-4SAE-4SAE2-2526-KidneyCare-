@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  *  - POST/PUT/DELETE /api/**  → rôle MEDECIN uniquement
  *  - /actuator/health → public (liveness probe)
  *
- * Désactivé en profil "test" (application-test.properties exclut SecurityAutoConfiguration).
+ * Désactivé en profil "test" — voir {@code TestSecurityConfig} (MockMvc sans JWT).
  */
 @Configuration
 @EnableWebSecurity

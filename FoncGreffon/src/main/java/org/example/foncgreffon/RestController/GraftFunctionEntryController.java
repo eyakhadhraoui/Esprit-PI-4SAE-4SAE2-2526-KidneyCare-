@@ -2,6 +2,7 @@ package org.example.foncgreffon.RestController;
 
 import org.example.foncgreffon.Entity.GraftFunctionEntry;
 import org.example.foncgreffon.Service.GraftFunctionEntryService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,7 @@ public class GraftFunctionEntryController {
 
     @PostMapping
     public ResponseEntity<GraftFunctionEntry> create(@RequestBody GraftFunctionEntry entry) {
-        return ResponseEntity.ok(service.save(entry));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.save(entry));
     }
 
     @GetMapping
@@ -54,7 +55,9 @@ public class GraftFunctionEntryController {
     @PutMapping("/{id}")
     public ResponseEntity<GraftFunctionEntry> update(@PathVariable Long id,
                                                      @RequestBody GraftFunctionEntry entry) {
-        return ResponseEntity.ok(service.update(id, entry));
+        return service.update(id, entry)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")

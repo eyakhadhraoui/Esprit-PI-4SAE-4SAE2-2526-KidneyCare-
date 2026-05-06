@@ -74,7 +74,7 @@ init/keycloak/*.dump
 
 # Uploads & Temp Files
 uploads/
-/NEPHRO/uploads/
+/DossierMedicale/uploads/
 temp/
 tmp/
 *.tmp

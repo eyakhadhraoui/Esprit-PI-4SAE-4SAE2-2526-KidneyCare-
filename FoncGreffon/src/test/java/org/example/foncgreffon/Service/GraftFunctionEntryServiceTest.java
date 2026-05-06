@@ -175,7 +175,7 @@ class GraftFunctionEntryServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(sampleEntry));
         when(repository.save(any(GraftFunctionEntry.class))).thenReturn(saved);
 
-        GraftFunctionEntry result = service.update(1L, updated);
+        GraftFunctionEntry result = service.update(1L, updated).orElseThrow();
 
         assertThat(result.getCreatinine()).isEqualTo(1.8);
         assertThat(result.geteGFR()).isEqualTo(40.0);
@@ -184,13 +184,11 @@ class GraftFunctionEntryServiceTest {
     }
 
     @Test
-    @DisplayName("update() — throws RuntimeException when entry not found")
-    void update_shouldThrowWhenNotFound() {
+    @DisplayName("update() — empty Optional when entry not found")
+    void update_shouldReturnEmptyWhenNotFound() {
         when(repository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.update(999L, sampleEntry))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("GraftFunctionEntry not found: 999");
+        assertThat(service.update(999L, sampleEntry)).isEmpty();
 
         verify(repository, never()).save(any());
     }

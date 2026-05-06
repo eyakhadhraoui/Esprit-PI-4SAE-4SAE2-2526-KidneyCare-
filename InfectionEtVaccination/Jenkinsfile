@@ -20,10 +20,11 @@ pipeline {
                 script {
                     def serviceModules = [
                         'demo',
-                        'demo1',
-                        'NEPHRO',
+                        'TestBilan',
+                        'DossierMedicale',
                         'InfectionEtVaccination',
                         'projetconsultation',
+                        'prescription-Service',
                         'projetparametrevital/projetparametrevital',
                         'Nutrition_Service/Nutrition_Service',
                         'FoncGreffon',
@@ -37,17 +38,44 @@ pipeline {
                 }
             }
         }
-        stage('Unit Tests (NEPHRO + Consultation)') {
+        stage('Tests unitaires - demo') {
+            steps { dir('demo') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - TestBilan') {
+            steps { dir('TestBilan') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - DossierMedicale') {
+            steps { dir('DossierMedicale') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - InfectionEtVaccination') {
+            steps { dir('InfectionEtVaccination') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - projetconsultation') {
+            steps { dir('projetconsultation') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - prescription-Service') {
+            steps { dir('prescription-Service') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - projetparametrevital') {
+            steps { dir('projetparametrevital/projetparametrevital') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - Nutrition_Service') {
+            steps { dir('Nutrition_Service/Nutrition_Service') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - FoncGreffon') {
+            steps { dir('FoncGreffon') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - API Gateway') {
+            steps { dir('wetransfer_api_2026-03-24_1825/API') { sh 'mvn -B test -DfailIfNoTests=false' } }
+        }
+        stage('Tests unitaires - frontend (mon-projet)') {
+            environment {
+                CI = 'true'
+            }
             steps {
-                script {
-                    def testModules = [
-                        'NEPHRO'
-                    ]
-                    testModules.each { module ->
-                        dir(module) {
-                            sh 'mvn test'
-                        }
-                    }
+                dir('mon-projet') {
+                    sh 'npm ci'
+                    sh 'npx ng test --watch=false'
                 }
             }
         }
@@ -57,10 +85,11 @@ pipeline {
                     script {
                         def serviceModules = [
                             'demo',
-                            'demo1',
-                            'NEPHRO',
+                            'TestBilan',
+                            'DossierMedicale',
                             'projetconsultation',
                             'InfectionEtVaccination',
+                            'prescription-Service',
                             'projetparametrevital/projetparametrevital',
                             'Nutrition_Service/Nutrition_Service',
                             'FoncGreffon',
@@ -71,6 +100,10 @@ pipeline {
                                 sh 'mvn sonar:sonar'
                             }
                         }
+                        dir('mon-projet') {
+                            sh 'npm ci'
+                            sh 'npm run sonar'
+                        }
                     }
                 }
             }
@@ -80,10 +113,11 @@ pipeline {
                 script {
                     def serviceModules = [
                         'demo',
-                        'demo1',
-                        'NEPHRO',
+                        'TestBilan',
+                        'DossierMedicale',
                         'projetconsultation',
                         'InfectionEtVaccination',
+                        'prescription-Service',
                         'projetparametrevital/projetparametrevital',
                         'Nutrition_Service/Nutrition_Service',
                         'FoncGreffon',
@@ -104,6 +138,11 @@ pipeline {
                     docker-compose up -d
                 '''
             }
+        }
+    }
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
         }
     }
 }

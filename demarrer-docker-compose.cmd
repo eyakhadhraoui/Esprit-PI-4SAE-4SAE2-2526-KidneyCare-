@@ -65,7 +65,7 @@ if "%choice%"=="1" (
     echo   - Keycloak: http://localhost:8080/admin (admin / admin)
     echo   - MailHog: http://localhost:8025
     echo   - Eureka: http://localhost:8761
-    echo   - NEPHRO: http://localhost:8089
+    echo   - DossierMedicale: http://localhost:8089
     echo.
     pause
 ) else if "%choice%"=="2" (

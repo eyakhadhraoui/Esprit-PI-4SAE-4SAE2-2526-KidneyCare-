@@ -118,7 +118,7 @@ services:
   # ===================== API GATEWAY =====================
   api-gateway:
     build:
-      context: ./demo1
+      context: ./TestBilan
       dockerfile: Dockerfile
     container_name: api-gateway
     ports:
@@ -140,7 +140,7 @@ services:
   # ===================== NEPHRO SERVICE =====================
   nephro:
     build:
-      context: ./NEPHRO
+      context: ./DossierMedicale
       dockerfile: Dockerfile
     container_name: nephro-service
     ports:
@@ -349,18 +349,20 @@ services:
 
   # ===================== OBSERVABILITY =====================
   prometheus:
-  image: prom/prometheus:latest
-  container_name: prometheus
-  ports:
-    - "9090:9090"
-  volumes:
-    - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    - prometheus_data:/prometheus
-  command:
-    - "--config.file=/etc/prometheus/prometheus.yml"
-    - "--storage.tsdb.path=/prometheus"
-  networks:
-    - nephro-network
+    build:
+      context: .
+      dockerfile: docker/prometheus/Dockerfile
+    image: kidneycare/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - nephro-network
 
   grafana:
     image: grafana/grafana:latest

@@ -22,9 +22,9 @@ echo ""
 
 # Array des services et leurs chemins
 declare -a services=(
-    "NEPHRO:./NEPHRO"
+    "DossierMedicale:./DossierMedicale"
     "Eureka:./demo"
-    "ApiGateway:./demo1"
+    "ApiGateway:./TestBilan"
     "FoncGreffon:./FoncGreffon"
     "InfectionVaccination:./InfectionEtVaccination"
     "Nutrition:./Nutrition_Service/Nutrition_Service"
