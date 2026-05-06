@@ -115,25 +115,7 @@ pipeline {
             }
         }
 
-        stage('Configure Prometheus') {
-            steps {
-                sh '''
-                    echo "=== Attente démarrage Prometheus ==="
-                    sleep 10
         
-                    echo "=== Copie prometheus.yml dans le conteneur ==="
-                    docker cp /var/jenkins_home/workspace/KidneyCare-CICD/prometheus.yml prometheus:/etc/prometheus/prometheus.yml
-        
-                    echo "=== Rechargement de la config Prometheus ==="
-                    docker restart prometheus
-        
-                    echo "=== Vérification ==="
-                    sleep 5
-                    docker exec prometheus cat /etc/prometheus/prometheus.yml
-                    docker logs prometheus --tail=10
-                '''
-            }
-        }
    
 
         // ─── KUBERNETES ───────────────────────────────────────────────────────
