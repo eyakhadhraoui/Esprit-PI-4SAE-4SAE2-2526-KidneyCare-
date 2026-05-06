@@ -1,0 +1,27 @@
+package com.example.nutrition_service.controller;
+
+import com.example.nutrition_service.dto.DietRecommendationDTO;
+import com.example.nutrition_service.service.DietCalculatorService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/nutrition")
+@CrossOrigin(origins = "http://localhost:4200")
+public class DietRecommendationController {
+
+    @Autowired
+    DietCalculatorService dietCalculatorService;
+
+    @GetMapping("/diet-recommendation/{patientId}")
+    public ResponseEntity<DietRecommendationDTO> getRecommendation(
+            @PathVariable Long patientId) {
+
+        try {
+            return ResponseEntity.ok(dietCalculatorService.calculate(patientId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+}
