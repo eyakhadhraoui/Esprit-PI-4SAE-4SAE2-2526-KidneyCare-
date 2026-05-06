@@ -1,0 +1,77 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-init
+  labels:
+    app.kubernetes.io/name: keycloak-init
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak-init
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: init
+          image: quay.io/keycloak/keycloak:26.0.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -e
+              echo "Waiting for Keycloak (TCP 8080)..."
+              for i in $(seq 1 90); do
+                if (echo >/dev/tcp/keycloak/8080) >/dev/null 2>&1; then
+                  break
+                fi
+                sleep 2
+              done
+              sleep 5
+              /opt/keycloak/bin/kcadm.sh config credentials \
+                --server http://keycloak:8080 --realm master \
+                --user "$KEYCLOAK_ADMIN" --password "$KEYCLOAK_ADMIN_PASSWORD"
+              echo "Ensuring realm kidneyCare-realm exists..."
+              /opt/keycloak/bin/kcadm.sh get realms/kidneyCare-realm >/dev/null
+              ensure_user() {
+                USERNAME="$1"; EMAIL="$2"; FIRST="$3"; LAST="$4"; PASS="$5"
+                if /opt/keycloak/bin/kcadm.sh get users -r kidneyCare-realm -q username="$USERNAME" | grep -q '"username"'; then
+                  echo "User $USERNAME already exists"
+                else
+                  echo "Creating user $USERNAME"
+                  /opt/keycloak/bin/kcadm.sh create users -r kidneyCare-realm \
+                    -s username="$USERNAME" -s enabled=true -s email="$EMAIL" \
+                    -s firstName="$FIRST" -s lastName="$LAST"
+                fi
+                /opt/keycloak/bin/kcadm.sh set-password -r kidneyCare-realm --username "$USERNAME" --new-password "$PASS" --temporary=false
+              }
+              ensure_user "${KC_TEST_PATIENT_USER}" "${KC_TEST_PATIENT_EMAIL}" "Patient" "Test" "${KC_TEST_PATIENT_PASS}"
+              ensure_user "${KC_TEST_MEDECIN_USER}" "${KC_TEST_MEDECIN_EMAIL}" "Medecin" "Test" "${KC_TEST_MEDECIN_PASS}"
+              echo "Assigning realm roles..."
+              /opt/keycloak/bin/kcadm.sh add-roles -r kidneyCare-realm --username "${KC_TEST_PATIENT_USER}" --rolename patient || true
+              /opt/keycloak/bin/kcadm.sh add-roles -r kidneyCare-realm --username "${KC_TEST_MEDECIN_USER}" --rolename medecin || true
+              echo "Keycloak init done."
+          env:
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: kidneycare-secrets
+                  key: keycloak-admin
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kidneycare-secrets
+                  key: keycloak-admin-password
+            - name: KC_TEST_PATIENT_USER
+              value: patient1
+            - name: KC_TEST_PATIENT_PASS
+              value: patient1
+            - name: KC_TEST_PATIENT_EMAIL
+              value: patient1@example.com
+            - name: KC_TEST_MEDECIN_USER
+              value: medecin1
+            - name: KC_TEST_MEDECIN_PASS
+              value: medecin1
+            - name: KC_TEST_MEDECIN_EMAIL
+              value: medecin1@example.com

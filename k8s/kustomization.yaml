@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kidneycare
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  - mysql/service.yaml
+  - mysql/statefulset.yaml
+  - keycloak/service.yaml
+  - keycloak/deployment.yaml
+  - keycloak/job-init.yaml
+  - mailhog/service.yaml
+  - mailhog/deployment.yaml
+  - eureka/service.yaml
+  - eureka/deployment.yaml
+  - api-gateway/service.yaml
+  - api-gateway/deployment.yaml
+  - nephro/pvc-uploads.yaml
+  - nephro/service.yaml
+  - nephro/deployment.yaml
+  - consultation/service.yaml
+  - consultation/deployment.yaml
+  - parametrevital/service.yaml
+  - parametrevital/deployment.yaml
+  - infection-vaccination/service.yaml
+  - infection-vaccination/deployment.yaml
+  - nutrition/service.yaml
+  - nutrition/deployment.yaml
+  - prescription/service.yaml
+  - prescription/deployment.yaml
+  - greffe/service.yaml
+  - greffe/deployment.yaml
+  - frontend/service.yaml
+  - frontend/deployment.yaml
+  - prometheus/configmap.yaml
+  - prometheus/service.yaml
+  - prometheus/deployment.yaml
+  - grafana/service.yaml
+  - grafana/deployment.yaml

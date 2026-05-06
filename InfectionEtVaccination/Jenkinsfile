@@ -1,0 +1,109 @@
+pipeline {
+    agent any
+    tools {
+        maven 'M2_HOME'
+    }
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Clone Repository') {
+            steps {
+                git branch: 'DEVOPS1',
+                    url: 'https://github.com/eyakhadhraoui/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-.git'
+            }
+        }
+        stage('Build All Services') {
+            steps {
+                script {
+                    def serviceModules = [
+                        'demo',
+                        'demo1',
+                        'NEPHRO',
+                        'InfectionEtVaccination',
+                        'projetconsultation',
+                        'projetparametrevital/projetparametrevital',
+                        'Nutrition_Service/Nutrition_Service',
+                        'FoncGreffon',
+                        'wetransfer_api_2026-03-24_1825/API'   // ← API Gateway
+                    ]
+                    serviceModules.each { module ->
+                        dir(module) {
+                            sh 'mvn clean install -DskipTests'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Unit Tests (NEPHRO + Consultation)') {
+            steps {
+                script {
+                    def testModules = [
+                        'NEPHRO'
+                    ]
+                    testModules.each { module ->
+                        dir(module) {
+                            sh 'mvn test'
+                        }
+                    }
+                }
+            }
+        }
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    script {
+                        def serviceModules = [
+                            'demo',
+                            'demo1',
+                            'NEPHRO',
+                            'projetconsultation',
+                            'InfectionEtVaccination',
+                            'projetparametrevital/projetparametrevital',
+                            'Nutrition_Service/Nutrition_Service',
+                            'FoncGreffon',
+                            'wetransfer_api_2026-03-24_1825/API'   // ← API Gateway
+                        ]
+                        serviceModules.each { module ->
+                            dir(module) {
+                                sh 'mvn sonar:sonar'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Package JAR') {
+            steps {
+                script {
+                    def serviceModules = [
+                        'demo',
+                        'demo1',
+                        'NEPHRO',
+                        'projetconsultation',
+                        'InfectionEtVaccination',
+                        'projetparametrevital/projetparametrevital',
+                        'Nutrition_Service/Nutrition_Service',
+                        'FoncGreffon',
+                        'wetransfer_api_2026-03-24_1825/API'   // ← API Gateway
+                    ]
+                    serviceModules.each { module ->
+                        dir(module) {
+                            sh 'mvn package -DskipTests'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Docker Compose Restart') {
+            steps {
+                sh '''
+                    docker-compose down || true
+                    docker-compose up -d
+                '''
+            }
+        }
+    }
+}

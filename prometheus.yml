@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "eureka"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["eureka:8761"]
+
+  - job_name: "api-gateway"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["api-gateway:8088"]
+
+  - job_name: "nephro"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["nephro:8089"]
+
+  - job_name: "consultation"
+    metrics_path: /projet/actuator/prometheus
+    static_configs:
+      - targets: ["consultation:8081"]
+
+  - job_name: "parametrevital"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["parametrevital:8082"]
+
+  - job_name: "infection-vaccination"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["infection-vaccination:8082"]
+
+  - job_name: "nutrition"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["nutrition:8088"]
+
+  - job_name: "prescription"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["prescription:8086"]
+
+  - job_name: "greffe"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["greffe:8096"]

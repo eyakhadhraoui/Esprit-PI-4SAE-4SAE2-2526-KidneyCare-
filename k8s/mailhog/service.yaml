@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailhog
+  labels:
+    app.kubernetes.io/name: mailhog
+spec:
+  type: ClusterIP
+  ports:
+    - port: 1025
+      targetPort: 1025
+      name: smtp
+    - port: 8025
+      targetPort: 8025
+      name: ui
+  selector:
+    app.kubernetes.io/name: mailhog

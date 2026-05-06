@@ -1,0 +1,84 @@
+<div class="wm-container">
+  <div class="wm-header">
+    <div class="wm-header-left">
+      <h2 class="wm-title">Menus suggérés de la semaine</h2>
+      <p class="wm-subtitle">3 propositions par jour — choisissez celle qui vous convient</p>
+    </div>
+    <div class="wm-header-actions">
+      <button class="wm-btn wm-btn-secondary" type="button" (click)="regenerateWeek()">🔄 Régénérer</button>
+      <button class="wm-btn wm-btn-pdf" type="button" (click)="exportToPDF()">📄 Meal Planner PDF</button>
+      <button class="wm-btn wm-btn-print" type="button" (click)="printWeeklyMenu()">🛒 Groceries List</button>
+    </div>
+  </div>
+
+  <div class="wm-days-tabs">
+    <button
+      *ngFor="let jour of jours"
+      class="wm-day-tab"
+      [class.wm-day-tab--active]="jour.jour === activeJour"
+      [class.wm-day-tab--done]="isMenuComplete(jour.jour)"
+      type="button"
+      (click)="selectDay(jour.jour)"
+    >
+      <span>{{ jour.jeurFrancais }}</span>
+      <span class="wm-day-tab-check" *ngIf="isMenuComplete(jour.jour)">✓</span>
+    </button>
+  </div>
+
+  <div class="wm-card-grid" *ngIf="activeMenus.length > 0">
+    <article
+      *ngFor="let menu of activeMenus; let idx = index"
+      class="wm-card"
+      [class.wm-card--selected]="isMenuSelected(activeJour, idx)"
+    >
+      <!-- Header carte -->
+      <div class="wm-card-head">
+        <div class="wm-card-topline">
+          <span class="wm-card-badge wm-card-badge--chosen" *ngIf="isMenuSelected(activeJour, idx)">✓ Choisi</span>
+          <span class="wm-card-title">Menu {{ idx + 1 }}</span>
+        </div>
+        <div class="wm-card-stats">
+          <span class="wm-stat wm-stat--cal">🔥 {{ menu.totalCalories | number : '1.0-0' }} kcal</span>
+          <span class="wm-stat wm-stat--prot">🥩 {{ menu.totalProteines | number : '1.0-0' }}g prot</span>
+          <span class="wm-stat wm-stat--k">🧂 {{ menu.totalPotassium | number : '1.0-0' }}mg K⁺</span>
+        </div>
+      </div>
+
+      <!-- Corps : repas -->
+      <div class="wm-card-body">
+        <div *ngFor="let repas of menu.repas || []" class="wm-card-meal">
+          <div class="wm-card-meal-header">
+            <span class="wm-meal-icon">{{ getRepasIcon(repas.type || '') }}</span>
+            <span class="wm-meal-label">{{ getRepasLabel(repas.type || '') }}</span>
+            <span class="wm-meal-kcal">{{ repas.totalCalories | number : '1.0-0' }} kcal</span>
+          </div>
+          <ul class="wm-card-aliments">
+            <li *ngFor="let aliment of repas.aliments || []" class="wm-card-aliment">
+              <span>{{ aliment.nom }}</span>
+              <span class="wm-aliment-portion">{{ aliment.portionG | number : '1.0-0' }}g</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Footer : bouton selection -->
+      <div class="wm-card-footer">
+        <button
+          class="wm-card-choose"
+          [class.wm-card-choose--selected]="isMenuSelected(activeJour, idx)"
+          [class.wm-card-choose--outline]="!isMenuSelected(activeJour, idx)"
+          type="button"
+          (click)="chooseMenu(activeJour, idx)"
+        >
+          <span *ngIf="isMenuSelected(activeJour, idx)">✓ Menu sélectionné</span>
+          <span *ngIf="!isMenuSelected(activeJour, idx)">Choisir ce menu</span>
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <div class="wm-empty" *ngIf="activeMenus.length === 0">
+    <p>Aucun menu trouvé pour le jour sélectionné. Essayez de régénérer.</p>
+    <button class="wm-btn wm-btn-secondary" type="button" (click)="regenerateWeek()">🔄 Régénérer</button>
+  </div>
+</div>

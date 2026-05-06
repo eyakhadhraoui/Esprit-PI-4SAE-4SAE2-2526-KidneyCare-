@@ -1,0 +1,374 @@
+services:
+  # ===================== DATABASE (MySQL) =====================
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-nephro
+    ports:
+      - "13307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: nep
+      MYSQL_USER: nephro_user
+      MYSQL_PASSWORD: nephro_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./nep.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - nephro-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 5
+      interval: 10s
+
+  # ===================== KEYCLOAK =====================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: keycloak-nephro
+    ports:
+      - "18080:8080"        # ← 8080 → 18080
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 18080
+      KC_HOSTNAME_STRICT: "false"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./realm-export.json:/opt/keycloak/data/import/realm.json:ro
+    networks:
+      - nephro-network
+    command: start-dev --import-realm
+
+  # ===================== KEYCLOAK INIT =====================
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:26.0.0
+    depends_on:
+      keycloak:
+        condition: service_started
+    networks:
+      - nephro-network
+    restart: "no"
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      '
+      set -e;
+      echo "Waiting for Keycloak...";
+      for i in $(seq 1 60); do
+        if /opt/keycloak/bin/kcadm.sh config credentials --server http://keycloak:8080 --realm master --user "$${KEYCLOAK_ADMIN}" --password "$${KEYCLOAK_ADMIN_PASSWORD}" >/dev/null 2>&1; then
+          break;
+        fi;
+        sleep 2;
+      done;
+
+      echo "Ensuring realm kidneyCare-realm exists...";
+      /opt/keycloak/bin/kcadm.sh get realms/kidneyCare-realm >/dev/null;
+
+      ensure_user () {
+        USERNAME="$${1}"; EMAIL="$${2}"; FIRST="$${3}"; LAST="$${4}"; PASS="$${5}";
+        if /opt/keycloak/bin/kcadm.sh get users -r kidneyCare-realm -q username="$${USERNAME}" | grep -q "\"username\""; then
+          echo "User $${USERNAME} already exists";
+        else
+          echo "Creating user $${USERNAME}";
+          /opt/keycloak/bin/kcadm.sh create users -r kidneyCare-realm -s username="$${USERNAME}" -s enabled=true -s email="$${EMAIL}" -s firstName="$${FIRST}" -s lastName="$${LAST}";
+        fi;
+        ID=$$(/opt/keycloak/bin/kcadm.sh get users -r kidneyCare-realm -q username="$${USERNAME}" --fields id --format csv | tail -n 1);
+        /opt/keycloak/bin/kcadm.sh set-password -r kidneyCare-realm --username "$${USERNAME}" --new-password "$${PASS}" --temporary=false;
+        echo "$${ID}";
+      };
+
+      P_ID=$$(ensure_user "$${KC_TEST_PATIENT_USER}" "$${KC_TEST_PATIENT_EMAIL}" "Patient" "Test" "$${KC_TEST_PATIENT_PASS}");
+      M_ID=$$(ensure_user "$${KC_TEST_MEDECIN_USER}" "$${KC_TEST_MEDECIN_EMAIL}" "Medecin" "Test" "$${KC_TEST_MEDECIN_PASS}");
+
+      echo "Assigning realm roles...";
+      /opt/keycloak/bin/kcadm.sh add-roles -r kidneyCare-realm --uusername "$${KC_TEST_PATIENT_USER}" --rolename patient || true;
+      /opt/keycloak/bin/kcadm.sh add-roles -r kidneyCare-realm --uusername "$${KC_TEST_MEDECIN_USER}" --rolename medecin || true;
+
+      echo "Keycloak init done.";
+      '
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_TEST_PATIENT_USER: patient1
+      KC_TEST_PATIENT_PASS: patient1
+      KC_TEST_PATIENT_EMAIL: patient1@example.com
+      KC_TEST_MEDECIN_USER: medecin1
+      KC_TEST_MEDECIN_PASS: medecin1
+      KC_TEST_MEDECIN_EMAIL: medecin1@example.com
+
+  # ===================== EUREKA SERVER =====================
+  eureka:
+    build:
+      context: ./demo
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "18761:8761"        # ← 8761 → 18761
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+
+  # ===================== API GATEWAY =====================
+  api-gateway:
+    build:
+      context: ./demo1
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "18088:8088"        # ← 8088 → 18088
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_CLIENT_FETCH_REGISTRY: "true"
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_INSTANCE_HOSTNAME: api-gateway
+    networks:
+      - nephro-network
+    depends_on:
+      - eureka
+      - mysql
+
+  # ===================== NEPHRO SERVICE =====================
+  nephro:
+    build:
+      context: ./NEPHRO
+      dockerfile: Dockerfile
+    container_name: nephro-service
+    ports:
+      - "18089:8089"        # ← 8089 → 18089
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_CLIENT_FETCH_REGISTRY: "true"
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_INSTANCE_HOSTNAME: nephro
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/kidneyCare-realm/protocol/openid-connect/certs
+      KEYCLOAK_URL: http://keycloak:8080
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+    volumes:
+      - ./agent_analyse_labo.py:/app/agent_analyse_labo.py
+      - nephro_uploads:/app/uploads
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+      - keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8089/api/auth/ping >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 60
+      start_period: 180s
+
+  # ===================== CONSULTATION SERVICE =====================
+  consultation:
+    build:
+      context: ./projetconsultation
+      dockerfile: Dockerfile
+    container_name: consultation-service
+    ports:
+      - "18081:8081"        # ← 8081 → 18081
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: consultation
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+
+  # ===================== VITAL PARAMETERS SERVICE =====================
+  parametrevital:
+    build:
+      context: ./projetparametrevital/projetparametrevital
+      dockerfile: Dockerfile
+    container_name: parametrevital-service
+    ports:
+      - "18082:8082"        # ← 8082 → 18082
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: parametrevital
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+
+  # ===================== INFECTION & VACCINATION SERVICE =====================
+  infection-vaccination:
+    build:
+      context: ./InfectionEtVaccination
+      dockerfile: Dockerfile
+    container_name: infection-vaccination-service
+    ports:
+      - "18083:8082"        # ← 8083 → 18083
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: infection-vaccination
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+
+  # ===================== NUTRITION SERVICE =====================
+  nutrition:
+    build:
+      context: ./Nutrition_Service/Nutrition_Service
+      dockerfile: Dockerfile
+    container_name: nutrition-service
+    ports:
+      - "18084:8088"        # ← 8084 → 18084
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: nutrition
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/kidneyCare-realm/protocol/openid-connect/certs
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+      - keycloak
+
+  # ===================== PRESCRIPTION SERVICE =====================
+  prescription:
+    build:
+      context: ./prescription-Service
+      dockerfile: Dockerfile
+    container_name: prescription-service
+    ports:
+      - "18086:8086"        # ← 8086 → 18086
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: prescription
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+
+  # ===================== GREFFE SERVICE =====================
+  greffe:
+    build:
+      context: ./FoncGreffon
+      dockerfile: Dockerfile
+    container_name: greffe-service
+    ports:
+      - "18096:8096"        # ← 8096 → 18096
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: nephro_user
+      SPRING_DATASOURCE_PASSWORD: nephro_password
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
+      EUREKA_INSTANCE_HOSTNAME: greffe
+    networks:
+      - nephro-network
+    depends_on:
+      - mysql
+      - eureka
+
+  # ===================== FRONTEND (Angular) =====================
+  frontend:
+    build:
+      context: ./mon-projet
+      dockerfile: Dockerfile
+    container_name: frontend-angular
+    ports:
+      - "14200:80"          # ← 4200 → 14200
+    environment:
+      KEYCLOAK_URL: http://localhost:18080
+      API_URL: http://localhost:18089
+    networks:
+      - nephro-network
+    depends_on:
+      nephro:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  # ===================== MAILHOG =====================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "11025:1025"        # ← 1025 → 11025
+      - "18025:8025"        # ← 8025 → 18025
+    networks:
+      - nephro-network
+
+  # ===================== OBSERVABILITY =====================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - nephro-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - nephro-network
+
+volumes:
+  mysql_data:
+    driver: local
+  keycloak_data:
+    driver: local
+  nephro_uploads:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  nephro-network:
+    driver: bridge

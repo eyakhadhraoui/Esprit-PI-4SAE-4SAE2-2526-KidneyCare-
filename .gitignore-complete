@@ -1,0 +1,205 @@
+# ====================================
+# .gitignore - KidneyCare Project
+# ====================================
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Build & Dependencies
+/target/
+/dist/
+/build/
+node_modules/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# Maven
+.m2/
+*.log
+
+# Gradle
+.gradle/
+
+# Node & NPM
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+
+# Angular
+/mon-projet/dist/
+/mon-projet/.angular/
+/mon-projet/coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment & Config (SENSIBLE DATA)
+.env
+.env.local
+.env.*.local
+*.properties.local
+application-local.properties
+
+# Database Backups (SENSIBLE DATA)
+init/mysql/*.sql
+init/mysql/*.sql.gz
+init/mysql/*.dump
+!init/mysql/.gitkeep
+
+# Keycloak Exports (SENSIBLE DATA)
+init/keycloak/*.json
+init/keycloak/*.dump
+!init/keycloak/.gitkeep
+
+# Uploads & Temp Files
+uploads/
+/NEPHRO/uploads/
+temp/
+tmp/
+*.tmp
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+docker/volumes/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+.desktop
+*.swp
+
+# Logs
+logs/
+*.log
+logs/**/*
+
+# Password & Keys (SECURITY)
+*.pem
+*.key
+*.pub
+.ssh/
+secrets/
+credentials/
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+*.accdb
+
+# Backups
+*.backup
+*.bak
+*.original
+*.old
+
+# Lock Files (optional, sometimes needed)
+# *.lock
+# yarn.lock
+# package-lock.json
+
+# Generated Files
+generated/
+generated-sources/
+target/
+
+# Test Reports
+test-results/
+coverage/
+.nyc_output/
+
+# Project Specific
+.settings/
+.classpath
+.project
+bin/
+*.class
+
+# IntelliJ
+*.iml
+*.iws
+*.ipr
+out/
+
+# STS
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# NetBeans
+/nbproject/
+/nb-configuration.xml
+
+# Miscellaneous
+.vscode-settings.json
+.history/
+.vscode-settings.json
+
+# Vendor Directories
+vendor/
+
+# Cache
+.cache/
+.eslintcache
+
+# OS and Editor Generated Files
+*.orig
+Thumbs.db
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE Specific
+*.sublime-workspace
+.vscode/settings.json
+
+# Temporary Files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.bak
+
+# Maven
+.repo/
+
+# Docker Volumes Data
+mysql_data/
+keycloak_data/
+# EXCEPTION: Keep upload volumes in git (if small)
+# nephro_uploads/
+
+

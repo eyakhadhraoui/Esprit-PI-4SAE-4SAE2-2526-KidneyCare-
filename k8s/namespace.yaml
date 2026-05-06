@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kidneycare
+  labels:
+    app.kubernetes.io/name: kidneycare

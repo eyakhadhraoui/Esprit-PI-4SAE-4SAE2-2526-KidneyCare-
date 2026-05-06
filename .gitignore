@@ -1,0 +1,90 @@
+# =========================
+# Global (monorepo) .gitignore
+# Angular + Spring Boot + Docker (Windows)
+# =========================
+
+# --- OS ---
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# --- Logs / temp ---
+*.log
+logs/
+log/
+tmp/
+temp/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.jks
+
+# --- Node / Angular ---
+**/node_modules/
+**/.angular/
+**/.cache/
+**/dist/
+**/out/
+**/.npm/
+**/.pnpm-store/
+**/.yarn/
+**/coverage/
+**/.parcel-cache/
+**/.eslintcache
+
+# Angular build artifacts (some setups)
+**/www/
+
+# --- Java / Maven / Gradle ---
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/.mvn/wrapper/maven-wrapper.properties.backup
+**/.gradle/
+**/build/
+
+# --- IDEs ---
+**/.idea/
+**/*.iml
+**/*.iws
+**/*.ipr
+**/.project
+**/.classpath
+**/.settings/
+**/.vscode/
+
+# --- Docker ---
+**/.docker/
+**/docker-data/
+**/data/
+
+# --- Large binary outputs (avoid GitHub 100MB limit) ---
+*.jar
+*.war
+*.ear
+*.class
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+*.iso
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.zip
+*.rar
+
+# --- Cursor / tooling ---
+.cursor/
+
+# --- Keep important project files ---
+!nep.sql
+!realm-export.json
+

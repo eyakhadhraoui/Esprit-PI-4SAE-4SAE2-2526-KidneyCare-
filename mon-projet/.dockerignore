@@ -1,0 +1,16 @@
+node_modules
+dist
+.angular
+.cache
+.vscode
+.idea
+coverage
+out-tsc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.local
+.env
+Dockerfile
+docker-compose*.yml
+docker-compose*.yaml

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prescription
+  labels:
+    app.kubernetes.io/name: prescription
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8086
+      targetPort: 8086
+      name: http
+  selector:
+    app.kubernetes.io/name: prescription

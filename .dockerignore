@@ -1,0 +1,85 @@
+# ====================================
+# .dockerignore - Optimise les builds Docker
+# ====================================
+
+# Git & Version Control
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Node & NPM
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm
+.eslintcache
+package-lock.json
+yarn.lock
+
+# Maven & Java
+target/
+.m2/
+*.jar
+*.war
+*.ear
+*.log
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+
+# Tests & Coverage
+coverage/
+test-results/
+.nyc_output/
+junit.xml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+docker/
+
+# Archive & Backup
+*.zip
+*.tar.gz
+*.backup
+*.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.python-version
+
+# OS Files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temp & Logs
+temp/
+tmp/
+logs/
+*.tmp
+
+# Dev & Local files
+.env.local
+.env.development
+.env.test
+localhost.*
+
