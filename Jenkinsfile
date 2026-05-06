@@ -11,14 +11,14 @@ pipeline {
 
     stage('Build') {
       steps {
-        sh 'cd Nutrition_Service && mvn clean package -DskipTests'
+        sh 'cd ${WORKSPACE}/Nutrition_Service && mvn clean package -DskipTests'
       }
     }
 
     stage('SonarQube') {
       steps {
         sh '''
-          cd Nutrition_Service && mvn sonar:sonar \
+          cd ${WORKSPACE}/Nutrition_Service && mvn sonar:sonar \
             -Dsonar.host.url=http://172.17.0.1:9000 \
             -Dsonar.login=admin \
             -Dsonar.password=adminadmin \
@@ -29,19 +29,19 @@ pipeline {
 
     stage('Docker Build') {
       steps {
-        sh 'docker-compose build'
+        sh 'cd ${WORKSPACE} && pwd && ls -la docker-compose.yml && docker-compose build'
       }
     }
 
     stage('Deploy') {
       steps {
-        sh 'docker-compose up -d'
+        sh 'cd ${WORKSPACE} && docker-compose up -d'
       }
     }
 
     stage('Deploy K8s') {        // ✅ Moved INSIDE stages { }
       steps {
-        sh 'kubectl apply -f nutrition-deployment.yaml'
+        sh 'cd ${WORKSPACE} && kubectl apply -f Nutrition_Service/nutrition-deployment.yaml'
       }
     }
 
