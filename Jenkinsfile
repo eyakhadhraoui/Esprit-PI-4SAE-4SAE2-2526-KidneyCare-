@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  environment {
+    MAVEN_REPO = '/var/lib/jenkins/.m2/repository'
+  }
+
   stages {
 
     stage('Checkout') {
@@ -11,18 +15,25 @@ pipeline {
 
     stage('Build') {
       steps {
-        sh 'cd ${WORKSPACE}/Nutrition_Service && mvn clean package -DskipTests'
+        sh '''
+          cd "${WORKSPACE}/Nutrition_Service"
+          chmod +x ./mvnw
+          ./mvnw -B -ntp clean package -Dmaven.test.skip=true -Dmaven.repo.local="${MAVEN_REPO}"
+        '''
       }
     }
 
     stage('SonarQube') {
       steps {
         sh '''
-          cd ${WORKSPACE}/Nutrition_Service && mvn sonar:sonar \
+          cd "${WORKSPACE}/Nutrition_Service"
+          chmod +x ./mvnw
+          ./mvnw -B -ntp sonar:sonar \
             -Dsonar.host.url=http://172.17.0.1:9000 \
             -Dsonar.login=admin \
             -Dsonar.password=adminadmin \
-            -Dsonar.projectKey=kidney-care
+            -Dsonar.projectKey=kidney-care \
+            -Dmaven.repo.local="${MAVEN_REPO}"
         '''
       }
     }
