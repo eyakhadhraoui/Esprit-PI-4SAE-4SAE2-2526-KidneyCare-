@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface Nutritionstatsrepository extends JpaRepository<BesoinNutritionnel, Long> {
+public interface NutritionStatsRepository extends JpaRepository<BesoinNutritionnel, Long> {
 
     // ══════════════════════════════════════════════════════════════════════
     // F9 — TABLEAU DE BORD

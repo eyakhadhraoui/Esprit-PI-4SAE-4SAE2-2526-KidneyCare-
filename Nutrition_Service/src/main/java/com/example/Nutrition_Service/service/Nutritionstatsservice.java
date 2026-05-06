@@ -16,9 +16,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class Nutritionstatsservice {
+public class NutritionStatsService {
 
-    private final Nutritionstatsrepository     statsRepository;
+    private final NutritionStatsRepository     statsRepository;
     private final AlimentRepository            alimentRepository;
     private final AlerteNutritionRepository    alerteRepository;
     private final BesoinNutritionnelRepository besoinRepository;

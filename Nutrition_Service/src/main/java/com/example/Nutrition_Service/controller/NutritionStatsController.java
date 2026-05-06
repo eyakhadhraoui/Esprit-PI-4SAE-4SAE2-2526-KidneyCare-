@@ -3,7 +3,7 @@ package com.example.Nutrition_Service.controller;
 import com.example.Nutrition_Service.dto.NutritionStatsDTO;
 import com.example.Nutrition_Service.entity.Aliment;
 import com.example.Nutrition_Service.entity.BesoinNutritionnel;
-import com.example.Nutrition_Service.service.Nutritionstatsservice;
+import com.example.Nutrition_Service.service.NutritionStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:4200")
 public class NutritionStatsController {   // ✅ Nom exact = nom du fichier
 
-    private final Nutritionstatsservice statsService;
+    private final NutritionStatsService statsService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<NutritionStatsDTO.DashboardStatsDTO> getDashboard() {
