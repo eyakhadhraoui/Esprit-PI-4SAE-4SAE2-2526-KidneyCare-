@@ -382,7 +382,7 @@ export class Home implements OnInit, OnDestroy {
       error: ()   => { this.testsCatalog = []; }
     });
 
-    this.resolvePatientIdAndLoadPrescriptions();
+    void this.resolvePatientIdAndLoadPrescriptions().catch(() => this.cdr.detectChanges());
   }
 
   /** Résout patientId (et patientName) puis charge les prescriptions */
@@ -396,8 +396,8 @@ export class Home implements OnInit, OnDestroy {
         const fn = String(me?.['firstName'] ?? '').trim();
         const ln = String(me?.['lastName'] ?? '').trim();
         const pn = [fn, ln].filter(Boolean).join(' ').trim() || String(me?.['patientNom'] ?? me?.['nom'] ?? '').trim();
-        if (pn) localStorage.setItem('patientName', pn);
-        localStorage.setItem('patientId', String(this.patientId));
+        if (pn) globalThis.localStorage?.setItem('patientName', pn);
+        globalThis.localStorage?.setItem('patientId', String(this.patientId));
         this.loadPrescriptions();
         this.cdr.detectChanges();
         return;
@@ -406,7 +406,7 @@ export class Home implements OnInit, OnDestroy {
       /* continue */
     }
 
-    const stored = localStorage.getItem('patientId');
+    const stored = globalThis.localStorage?.getItem('patientId') ?? null;
     if (stored) {
       const n = parseInt(stored, 10);
       if (!isNaN(n) && n > 0) {
@@ -433,7 +433,7 @@ export class Home implements OnInit, OnDestroy {
     const pidDirect = (payload?.['idPatient'] ?? payload?.['patientId'] ?? payload?.['patient_id']) as number | string | null | undefined;
     if (pidDirect != null && !isNaN(Number(pidDirect)) && Number(pidDirect) > 0) {
       this.patientId = Number(pidDirect);
-      localStorage.setItem('patientId', String(this.patientId));
+      globalThis.localStorage?.setItem('patientId', String(this.patientId));
       this.loadPrescriptions();
       this.cdr.detectChanges();
       return;
@@ -460,8 +460,8 @@ export class Home implements OnInit, OnDestroy {
           const fn = String(found['firstName'] ?? found['prenom'] ?? '').trim();
           const ln = String(found['lastName'] ?? found['nom'] ?? '').trim();
           const pn = [fn, ln].filter(Boolean).join(' ').trim() || String(found['patientNom'] ?? found['username'] ?? '').trim();
-          if (pn) localStorage.setItem('patientName', pn);
-          localStorage.setItem('patientId', String(this.patientId));
+          if (pn) globalThis.localStorage?.setItem('patientName', pn);
+          globalThis.localStorage?.setItem('patientId', String(this.patientId));
           this.loadPrescriptions();
         }
       }
@@ -3326,7 +3326,7 @@ export class Home implements OnInit, OnDestroy {
   }
 
   logout(): void {
-    localStorage.removeItem('patientId');
+    globalThis.localStorage?.removeItem('patientId');
     this.auth.logout();
   }
 }
