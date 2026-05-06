@@ -110,6 +110,7 @@ pipeline {
         stage('Docker Compose Restart') {
             steps {
                 sh '''
+                    cp /var/jenkins_home/workspace/4SAE2/prometheus.yml /tmp/prometheus.yml
                     docker rm -f prometheus grafana || true
                     docker volume rm 4sae2_prometheus_data 4sae2_grafana_data || true
                     docker-compose down --remove-orphans || true
