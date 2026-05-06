@@ -1,8 +1,8 @@
 # Build stage
 FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
-COPY pom.xml .
 COPY projetparametrevital/pom.xml ./projetparametrevital/pom.xml
+RUN mvn dependency:go-offline -q -B -f projetparametrevital/pom.xml
 COPY projetparametrevital/src ./projetparametrevital/src
 RUN mvn clean package -Dmaven.test.skip=true -B -f projetparametrevital/pom.xml
 

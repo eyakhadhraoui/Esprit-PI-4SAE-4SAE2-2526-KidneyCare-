@@ -1,0 +1,7 @@
+target/
+projetparametrevital/target/
+.git/
+.idea/
+.vscode/
+*.iml
+*.log
