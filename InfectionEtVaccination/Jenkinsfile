@@ -1,7 +1,9 @@
 pipeline {
     agent any
+    // Node : plugin « NodeJS » + installation nommée « NodeJS » (Global Tool Configuration). Adapter le libellé si besoin.
     tools {
         maven 'M2_HOME'
+        nodejs 'NodeJS'
     }
     stages {
         stage('Clean Workspace') {
