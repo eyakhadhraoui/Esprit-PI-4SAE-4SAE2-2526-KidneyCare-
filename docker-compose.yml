@@ -357,7 +357,7 @@ services:
       - ./prometheus.yml:/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--config.file=/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
     networks:
       - nephro-network
