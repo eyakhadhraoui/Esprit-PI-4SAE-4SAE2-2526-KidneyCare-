@@ -57,13 +57,13 @@ pipeline {
       }
     }
 
-    stage('Deploy K8s') {        // ✅ Moved INSIDE stages { }
+    stage('Deploy K8s') {
       steps {
         sh 'cd ${WORKSPACE} && kubectl apply -f Nutrition_Service/nutrition-deployment.yaml'
       }
     }
 
-  }  // end stages
+  }
 
   post {
     success { echo 'Pipeline réussi !' }
