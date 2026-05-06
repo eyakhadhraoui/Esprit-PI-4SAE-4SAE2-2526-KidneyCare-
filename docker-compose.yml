@@ -16,17 +16,18 @@ services:
     networks:
       - nephro-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
       timeout: 20s
-      retries: 5
+      retries: 10
       interval: 10s
+      start_period: 30s
 
   # ===================== KEYCLOAK =====================
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.0
     container_name: keycloak-nephro
     ports:
-      - "18080:8080"        # ← 8080 → 18080
+      - "18080:8080"
     environment:
       KC_HOSTNAME: localhost
       KC_HOSTNAME_PORT: 18080
@@ -104,14 +105,15 @@ services:
       dockerfile: Dockerfile
     container_name: eureka-server
     ports:
-      - "18761:8761"        # ← 8761 → 18761
+      - "18761:8761"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
     networks:
       - nephro-network
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   # ===================== API GATEWAY =====================
   api-gateway:
@@ -120,7 +122,7 @@ services:
       dockerfile: Dockerfile
     container_name: api-gateway
     ports:
-      - "18088:8088"        # ← 8088 → 18088
+      - "18088:8088"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka:8761/eureka
@@ -130,8 +132,10 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - eureka
-      - mysql
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
 
   # ===================== NEPHRO SERVICE =====================
   nephro:
@@ -140,7 +144,7 @@ services:
       dockerfile: Dockerfile
     container_name: nephro-service
     ports:
-      - "18089:8089"        # ← 8089 → 18089
+      - "18089:8089"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -160,9 +164,12 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
-      - keycloak
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
+      keycloak:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8089/api/auth/ping >/dev/null || exit 1"]
       interval: 5s
@@ -177,7 +184,7 @@ services:
       dockerfile: Dockerfile
     container_name: consultation-service
     ports:
-      - "18081:8081"        # ← 8081 → 18081
+      - "18081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -188,8 +195,10 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
 
   # ===================== VITAL PARAMETERS SERVICE =====================
   parametrevital:
@@ -198,7 +207,7 @@ services:
       dockerfile: Dockerfile
     container_name: parametrevital-service
     ports:
-      - "18082:8082"        # ← 8082 → 18082
+      - "18082:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -209,8 +218,10 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
 
   # ===================== INFECTION & VACCINATION SERVICE =====================
   infection-vaccination:
@@ -219,7 +230,7 @@ services:
       dockerfile: Dockerfile
     container_name: infection-vaccination-service
     ports:
-      - "18083:8082"        # ← 8083 → 18083
+      - "18083:8082"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -230,8 +241,10 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
 
   # ===================== NUTRITION SERVICE =====================
   nutrition:
@@ -240,7 +253,7 @@ services:
       dockerfile: Dockerfile
     container_name: nutrition-service
     ports:
-      - "18084:8088"        # ← 8084 → 18084
+      - "18084:8088"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -252,9 +265,12 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
-      - keycloak
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
+      keycloak:
+        condition: service_started
 
   # ===================== PRESCRIPTION SERVICE =====================
   prescription:
@@ -263,7 +279,7 @@ services:
       dockerfile: Dockerfile
     container_name: prescription-service
     ports:
-      - "18086:8086"        # ← 8086 → 18086
+      - "18086:8086"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -274,8 +290,10 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
 
   # ===================== GREFFE SERVICE =====================
   greffe:
@@ -284,7 +302,7 @@ services:
       dockerfile: Dockerfile
     container_name: greffe-service
     ports:
-      - "18096:8096"        # ← 8096 → 18096
+      - "18096:8096"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nep?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
@@ -295,8 +313,10 @@ services:
     networks:
       - nephro-network
     depends_on:
-      - mysql
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
 
   # ===================== FRONTEND (Angular) =====================
   frontend:
@@ -305,7 +325,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend-angular
     ports:
-      - "14200:80"          # ← 4200 → 14200
+      - "14200:80"
     environment:
       KEYCLOAK_URL: http://localhost:18080
       API_URL: http://localhost:18089
@@ -322,8 +342,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: mailhog
     ports:
-      - "11025:1025"        # ← 1025 → 11025
-      - "18025:8025"        # ← 8025 → 18025
+      - "11025:1025"
+      - "18025:8025"
     networks:
       - nephro-network
 
