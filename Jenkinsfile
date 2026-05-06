@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         SONAR_PROJECT_KEY    = 'kidneycare-platform'
-        MAVEN_OPTS           = '-Xmx512m -XX:MaxMetaspaceSize=256m'
+        MAVEN_OPTS           = '-Xmx1024m -XX:MaxMetaspaceSize=512m -XX:+UseG1GC'
         DOCKER_BUILDKIT      = '1'
-        MAVEN_VERIFY_EXTRA   = '-B -DforkedProcessTimeoutInSeconds=900'
+        MAVEN_VERIFY_EXTRA   = '-B -DforkedProcessTimeoutInSeconds=600 -DforkCount=1.5C -DreuseForks=true'
     }
 
     options {
