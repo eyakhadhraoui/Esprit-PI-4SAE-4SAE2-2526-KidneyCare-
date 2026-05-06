@@ -70,6 +70,9 @@ pipeline {
         stage('Tests unitaires - API Gateway') {
             steps { dir('wetransfer_api_2026-03-24_1825/API') { sh 'mvn -B test -DfailIfNoTests=false' } }
         }
+        stage('Préparation Node — libatomic (Linux)') {
+            steps { sh 'bash scripts/jenkins-ensure-node-libatomic.sh' }
+        }
         stage('Tests unitaires - frontend (mon-projet)') {
             environment {
                 CI = 'true'
@@ -102,6 +105,7 @@ pipeline {
                                 sh 'mvn sonar:sonar'
                             }
                         }
+                        sh 'bash scripts/jenkins-ensure-node-libatomic.sh'
                         dir('mon-projet') {
                             sh 'npm ci'
                             sh 'npm run sonar'

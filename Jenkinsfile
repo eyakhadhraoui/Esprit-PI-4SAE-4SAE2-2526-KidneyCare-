@@ -96,6 +96,13 @@ pipeline {
             }
         }
 
+        // Binaires Node récents : libatomic.so.1 (paquet libatomic1 sur Debian/Ubuntu)
+        stage('Préparation Node — libatomic (Linux)') {
+            steps {
+                sh 'bash scripts/jenkins-ensure-node-libatomic.sh'
+            }
+        }
+
         // Frontend Angular (Vitest) — Node/npm requis sur l’agent Jenkins
         stage('Tests unitaires - frontend (mon-projet)') {
             environment {
@@ -131,6 +138,7 @@ pipeline {
                             }
                         }
                         // Frontend Angular / TS (sonar-project.properties + sonarqube-scanner)
+                        sh 'bash scripts/jenkins-ensure-node-libatomic.sh'
                         dir('mon-projet') {
                             sh 'npm ci'
                             sh 'npm run sonar'
