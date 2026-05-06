@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         // ✅ Routes publiques
                         .requestMatchers("/public/**").permitAll()
                         // ✅ Toutes les routes API accessibles sans token (comme Prescription Service)

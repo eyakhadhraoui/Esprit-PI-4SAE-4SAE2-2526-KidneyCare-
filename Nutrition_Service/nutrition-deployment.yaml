@@ -1,3 +1,73 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nutrition-mysql-secret
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: root
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nutrition-config
+data:
+  MYSQL_DATABASE: nutrition
+  SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nutrition?createDatabaseIfNotExist=true
+  SPRING_DATASOURCE_USERNAME: root
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: nutrition-config
+              key: MYSQL_DATABASE
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nutrition-mysql-secret
+              key: MYSQL_ROOT_PASSWORD
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,12 +82,50 @@ spec:
       labels:
         app: nutrition-service
     spec:
+      imagePullSecrets:
+      - name: dockerhub-cred
       containers:
       - name: nutrition-service
         image: vagrant_nutrition-service:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8084
+        env:
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nutrition-config
+              key: SPRING_DATASOURCE_URL
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: nutrition-config
+              key: SPRING_DATASOURCE_USERNAME
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nutrition-mysql-secret
+              key: MYSQL_ROOT_PASSWORD
+        - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+          value: "false"
+        - name: EUREKA_CLIENT_FETCH_REGISTRY
+          value: "false"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          initialDelaySeconds: 40
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 6
 ---
 apiVersion: v1
 kind: Service

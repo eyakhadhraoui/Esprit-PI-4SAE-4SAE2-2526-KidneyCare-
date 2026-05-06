@@ -29,3 +29,5 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nutrition?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
