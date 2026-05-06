@@ -18,8 +18,10 @@ public class DietRecommendationController {
     public ResponseEntity<DietRecommendationDTO> getRecommendation(
             @PathVariable Long patientId) {
 
-        return dietCalculatorService.calculate(patientId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            return ResponseEntity.ok(dietCalculatorService.calculate(patientId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
