@@ -110,7 +110,9 @@ pipeline {
         stage('Docker Compose Restart') {
             steps {
                 sh '''
-                    docker-compose down || true
+                    docker rm -f prometheus grafana || true
+                    docker volume rm 4sae2_prometheus_data 4sae2_grafana_data || true
+                    docker-compose down --remove-orphans || true
                     docker-compose up -d --build
                 '''
             }
