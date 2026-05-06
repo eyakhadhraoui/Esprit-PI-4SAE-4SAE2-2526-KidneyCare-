@@ -27,6 +27,7 @@ pipeline {
                         'NEPHRO',
                         'InfectionEtVaccination',
                         'projetconsultation',
+                        'prescription-Service',
                         'projetparametrevital/projetparametrevital',
                         'Nutrition_Service/Nutrition_Service',
                         'FoncGreffon',
@@ -67,6 +68,7 @@ pipeline {
                             'projetparametrevital/projetparametrevital',
                             'Nutrition_Service/Nutrition_Service',
                             'FoncGreffon',
+                            'prescription-Service',
                             'wetransfer_api_2026-03-24_1825/API'
                         ]
                         serviceModules.each { module ->
@@ -91,7 +93,8 @@ pipeline {
                         'projetparametrevital/projetparametrevital',
                         'Nutrition_Service/Nutrition_Service',
                         'FoncGreffon',
-                        'wetransfer_api_2026-03-24_1825/API'
+                        'wetransfer_api_2026-03-24_1825/API',
+                        'prescription-Service'
                     ]
                     serviceModules.each { module ->
                         dir(module) {
