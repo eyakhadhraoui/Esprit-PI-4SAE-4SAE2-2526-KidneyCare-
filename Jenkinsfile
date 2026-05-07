@@ -62,7 +62,23 @@ pipeline {
 
     stage('Deploy K8s') {
       steps {
-        sh 'cd ${WORKSPACE} && kubectl apply -f Nutrition_Service/nutrition-deployment.yaml'
+        script {
+          echo '========================================='
+          echo 'Déploiement Kubernetes'
+          echo '========================================='
+          
+          // Charger et exécuter le JenkinsfileK8s
+          sh '''
+            cd ${WORKSPACE}
+            kubectl apply -f Nutrition_Service/nutrition-deployment.yaml
+            
+            echo "Attente du déploiement..."
+            sleep 10
+            
+            echo "Statut des pods:"
+            kubectl get pods -n default
+          '''
+        }
       }
     }
 

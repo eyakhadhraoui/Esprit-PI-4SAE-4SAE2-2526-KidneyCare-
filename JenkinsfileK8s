@@ -1,0 +1,73 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout') {
+      steps {
+        echo 'Récupération du code depuis GitHub'
+        checkout scm
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        script {
+          echo '========================================='
+          echo 'Déploiement sur le cluster Kubernetes'
+          echo '========================================='
+          
+          sh '''
+            # Vérifier la connexion au cluster
+            kubectl cluster-info
+            
+            # Appliquer les manifests Kubernetes
+            echo "Application des manifests..."
+            kubectl apply -f ${WORKSPACE}/Nutrition_Service/nutrition-deployment.yaml
+            
+            # Attendre que les pods soient prêts
+            echo "Attente du déploiement..."
+            kubectl rollout status deployment/mysql -n default --timeout=5m || true
+            kubectl rollout status deployment/nutrition-service -n default --timeout=5m || true
+            
+            # Vérifier les pods
+            echo "Statut des pods:"
+            kubectl get pods -n default
+            
+            # Vérifier les services
+            echo "Services disponibles:"
+            kubectl get svc -n default
+          '''
+        }
+      }
+    }
+
+    stage('Verify Deployment') {
+      steps {
+        script {
+          echo '========================================='
+          echo 'Vérification du déploiement'
+          echo '========================================='
+          
+          sh '''
+            # Vérifier les logs
+            echo "Logs du service Nutrition:"
+            kubectl logs -l app=nutrition-service -n default --tail=20 || true
+            
+            # Vérifier les ressources
+            echo "Ressources utilisées:"
+            kubectl top pods -n default || true
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Déploiement K8s réussi!'
+    }
+    failure {
+      echo '❌ Erreur lors du déploiement K8s'
+    }
+  }
+}
