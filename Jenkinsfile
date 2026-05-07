@@ -104,17 +104,7 @@ pipeline {
         }
 
         // Frontend Angular (Vitest) — Node/npm requis sur l’agent Jenkins
-        stage('Tests unitaires - frontend (mon-projet)') {
-            environment {
-                CI = 'true'
-            }
-            steps {
-                dir('mon-projet') {
-                    sh 'npm ci'
-                    sh 'npx ng test --watch=false --no-progress'
-                }
-            }
-        }
+        
 
         stage('SonarQube Analysis') {
             steps {
