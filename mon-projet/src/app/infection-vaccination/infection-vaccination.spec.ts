@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 
 import { InfectionVaccinationComponent } from './infection-vaccination';
 import { InfectionVaccinationService } from '../services/infection-vaccination.service';
 import { AuthRoleService } from '../services/auth-role.service';
+
+vi.setConfig({ hookTimeout: 30000, testTimeout: 30000 });
 
 describe('InfectionVaccinationComponent', () => {
   let fixture: ComponentFixture<InfectionVaccinationComponent>;

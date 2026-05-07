@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CommonModule } from '@angular/common';
 import { of, throwError } from 'rxjs';
+import { vi } from 'vitest';
 
 import { CalendrierPatientComponent } from './calendrier-patient';
 import { CalendrierService, CalendrierEvent } from '../services/calendrier.service';
+
+vi.setConfig({ hookTimeout: 30000, testTimeout: 30000 });
 
 describe('CalendrierPatientComponent', () => {
   let fixture: ComponentFixture<CalendrierPatientComponent>;

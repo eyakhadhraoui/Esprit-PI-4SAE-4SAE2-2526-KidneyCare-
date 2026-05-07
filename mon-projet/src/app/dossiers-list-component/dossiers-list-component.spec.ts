@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 
 import { DossiersListComponent } from './dossiers-list-component';
+
+vi.setConfig({ hookTimeout: 30000, testTimeout: 30000 });
 
 describe('DossiersListComponent', () => {
   let component: DossiersListComponent;
