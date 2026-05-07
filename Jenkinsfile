@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    // Node : plugin « NodeJS » + installation nommée exactement « NodeJS » (Manage Jenkins → Global Tool Configuration).
+    
     // Si votre installation a un autre nom, remplacez « NodeJS » ci-dessous par ce libellé.
     tools {
         maven 'M2_HOME'
