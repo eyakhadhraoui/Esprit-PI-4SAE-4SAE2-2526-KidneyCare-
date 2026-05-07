@@ -14,7 +14,7 @@ pipeline {
         }
         stage('Tests') {
             steps {
-                sh 'npm run test -- --watch=false'
+                sh 'npm run test -- --watch=false --code-coverage'
             }
         }
         stage('Build') {
@@ -25,21 +25,38 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
-                    sh """
+                    sh '''
+                        # Create a SonarQube-compatible tsconfig that overrides the
+                        # unsupported 'module' value (e.g. "preserve"/"bundler")
+                        # with one SonarQube 9.9's older TS engine understands.
+                        cat > tsconfig.sonar.json << 'EOF'
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "module": "es2022",
+    "moduleResolution": "node"
+  }
+}
+EOF
                         npx sonar-scanner \
                           -Dsonar.projectKey=InfEtFoncFrontend \
                           -Dsonar.host.url=http://host.docker.internal:9000 \
                           -Dsonar.login=$SONAR_TOKEN \
-                          -Dsonar.typescript.tsconfigPath=tsconfig.app.json \
-                          -Dsonar.javascript.detectBundles=false
-                    """
+                          -Dsonar.sources=src \
+                          -Dsonar.tests=src \
+                          -Dsonar.test.inclusions=**/*.spec.ts \
+                          -Dsonar.exclusions=**/node_modules/**,**/*.spec.ts \
+                          -Dsonar.typescript.tsconfigPath=tsconfig.sonar.json \
+                          -Dsonar.javascript.detectBundles=false \
+                          -Dsonar.javascript.lcov.reportPaths=coverage/mon-projet/lcov.info
+                    '''
                 }
             }
         }
         stage('Quality Gate') {
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
