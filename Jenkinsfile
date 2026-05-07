@@ -40,13 +40,15 @@ pipeline {
           usernameVariable: 'DOCKER_USER',
           passwordVariable: 'DOCKER_PASS'
         )]) {
-          sh '''
-            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            
-            docker tag vagrant_nutrition-service:latest $DOCKER_USER/nutrition-service:1.0
-            
-            docker push $DOCKER_USER/nutrition-service:1.0
-          '''
+          retry(3) {
+            sh '''
+              echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+              
+              docker tag vagrant_nutrition-service:latest $DOCKER_USER/nutrition-service:1.0
+              
+              docker push $DOCKER_USER/nutrition-service:1.0
+            '''
+          }
         }
       }
     }
