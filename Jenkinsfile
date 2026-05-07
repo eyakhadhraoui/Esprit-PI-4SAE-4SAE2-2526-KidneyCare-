@@ -21,8 +21,9 @@ pipeline {
           cd ${WORKSPACE}/Nutrition_Service && mvn sonar:sonar \
             -Dsonar.host.url=http://172.17.0.1:9000 \
             -Dsonar.login=admin \
-            -Dsonar.password=adminadmin \
-            -Dsonar.projectKey=kidney-care
+            -Dsonar.password=admin \
+            -Dsonar.projectKey=kidney-care \
+            -Dsonar.exclusions=**/Dockerfile,docker-compose.yml
         '''
       }
     }
