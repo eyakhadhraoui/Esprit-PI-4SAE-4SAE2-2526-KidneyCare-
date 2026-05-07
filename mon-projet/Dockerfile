@@ -11,7 +11,7 @@ LABEL version="1.0"
 RUN adduser -u 1001 -D nginx 2>/dev/null || true
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY dist/mon-projet/browser/ /usr/share/nginx/html/
+COPY dist/mon-projet/ /usr/share/nginx/html/
 
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
