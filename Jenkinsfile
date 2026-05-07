@@ -15,7 +15,7 @@ pipeline {
         }
         stage('Tests') {
             steps {
-                sh 'npx vitest run --coverage'
+                sh 'npm run test -- --watch=false'
             }
         }
         stage('Build') {
