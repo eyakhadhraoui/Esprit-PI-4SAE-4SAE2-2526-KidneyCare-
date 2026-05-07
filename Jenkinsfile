@@ -111,7 +111,7 @@ pipeline {
             steps {
                 dir('mon-projet') {
                     sh 'npm ci'
-                    sh 'npx ng test --watch=false --test-timeout=30000 --hook-timeout=30000'
+                    sh 'npx ng test --watch=false --no-progress'
                 }
             }
         }
