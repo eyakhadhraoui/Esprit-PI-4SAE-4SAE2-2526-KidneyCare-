@@ -32,7 +32,13 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
-                    sh "npx sonar-scanner -Dsonar.projectKey=InfEtFoncFrontend -Dsonar.host.url=http://host.docker.internal:9000 -Dsonar.login=$SONAR_TOKEN"
+                    sh """
+                        npx sonar-scanner \
+                          -Dsonar.projectKey=InfEtFoncFrontend \
+                          -Dsonar.host.url=http://host.docker.internal:9000 \
+                          -Dsonar.login=$SONAR_TOKEN \
+                          -Dsonar.typescript.tsconfigPath=tsconfig.sonar.json
+                    """
                 }
             }
         }
