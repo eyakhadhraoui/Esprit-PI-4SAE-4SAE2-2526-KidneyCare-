@@ -32,21 +32,19 @@ pipeline {
                 sh 'mvn -B package -DskipTests'
             }
         }
-
-        stage('SonarQube') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        mvn -B sonar:sonar \
-                          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                          -Dsonar.projectKey=NEPHRO \
-                          -Dsonar.projectName=NEPHRO \
-                          -Dsonar.branch.name=Dossiersmedicale
-                    '''
-                }
-            }
+stage('SonarQube') {
+    steps {
+        withSonarQubeEnv('SonarQube') {
+            sh '''
+                mvn -B sonar:sonar \
+                  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                  -Dsonar.projectKey=NEPHRO \
+                  -Dsonar.projectName=NEPHRO
+            '''
         }
-
+    }
+}
+       
         stage('OWASP Dependency Check (DevSecOps)') {
             steps {
                 script {
