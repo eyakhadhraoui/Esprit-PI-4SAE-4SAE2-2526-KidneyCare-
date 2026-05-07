@@ -162,10 +162,21 @@ pipeline {
             }
         }
 
+        // Build Angular sur l’agent (réseau Jenkins) — l’image Docker ne fait plus npm ci (évite ECONNRESET dans le daemon).
+        stage('Build frontend (Docker)') {
+            steps {
+                sh 'bash scripts/jenkins-ensure-node-libatomic.sh'
+                dir('mon-projet') {
+                    sh 'npm ci'
+                    sh 'npm run build -- --configuration production'
+                }
+            }
+        }
+
         // ─── DOCKER COMPOSE ───────────────────────────────────────────────────
-        // Les builds d’images utilisent le Node/Maven **des Dockerfiles**, pas l’outil Jenkins « NodeJS ».
-        // Si Docker n’est pas sur l’agent → étape ignorée (CI tests/Sonar sans daemon Docker).
-        // Pour forcer l’échec sans Docker : définir REQUIRE_DOCKER_COMPOSE=true sur le job.
+        // Images Spring Boot : Dockerfiles mono-étage — ils copient uniquement target/*.jar après
+        // « Package JAR ». Frontend : mon-projet/Dockerfile copie dist/ après le stage ci-dessus (pas de npm dans Docker).
+        // Si Docker n’est pas sur l’agent → étape ignorée. REQUIRE_DOCKER_COMPOSE=true pour échouer sans Docker.
         stage('Docker Compose Restart') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
