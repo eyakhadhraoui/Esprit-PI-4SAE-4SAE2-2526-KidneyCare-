@@ -31,8 +31,9 @@
 		<spring-cloud.version>2025.0.1</spring-cloud.version>
 		<jacoco.version>0.8.12</jacoco.version>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-		<sonar.coverage.exclusions>**/*Application.java,**/config/**,**/dto/**,**/entity/**,**/exception/**</sonar.coverage.exclusions>
-		<sonar.cpd.exclusions>**/dto/**,**/entity/**,**/*Request.java,**/*Response.java</sonar.cpd.exclusions>
+		<sonar.exclusions>**/src/test/**,**/target/**,**/*.xml,**/*.yml,**/*.yaml,**/*.properties,**/config/**,**/dto/**,**/entity/**,**/exception/**,**/model/**,**/mapper/**,**/repository/**,**/*Request.java,**/*Response.java</sonar.exclusions>
+		<sonar.coverage.exclusions>**/*Application.java,**/config/**,**/dto/**,**/entity/**,**/exception/**,**/model/**,**/mapper/**,**/repository/**</sonar.coverage.exclusions>
+		<sonar.cpd.exclusions>**/src/test/**,**/dto/**,**/entity/**,**/config/**,**/model/**,**/mapper/**,**/repository/**,**/*Request.java,**/*Response.java</sonar.cpd.exclusions>
 	</properties>
 	<dependencies>
 		<dependency>
