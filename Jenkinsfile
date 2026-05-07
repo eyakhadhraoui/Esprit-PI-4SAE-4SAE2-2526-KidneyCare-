@@ -14,7 +14,7 @@ pipeline {
         }
         stage('Tests') {
             steps {
-                sh 'npx ng test --watch=false --code-coverage'
+                sh 'npx vitest run --coverage'
             }
         }
         stage('Build') {
@@ -45,7 +45,7 @@ EOF
                           -Dsonar.exclusions=**/node_modules/**,**/*.spec.ts \
                           -Dsonar.typescript.tsconfigPath=tsconfig.sonar.json \
                           -Dsonar.javascript.detectBundles=false \
-                          -Dsonar.javascript.lcov.reportPaths=coverage/mon-projet/lcov.info
+                          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                     '''
                 }
             }
