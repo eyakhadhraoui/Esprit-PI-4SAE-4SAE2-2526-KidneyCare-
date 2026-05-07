@@ -103,9 +103,7 @@ pipeline {
             }
         }
 
-        // Frontend Angular (Vitest) — Node/npm requis sur l’agent Jenkins
-        
-
+        // ─── SONARQUBE + NOTIFICATION EMAIL ──────────────────────────────────
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
@@ -136,6 +134,47 @@ pipeline {
                     }
                 }
             }
+            // ── Notifications email SonarQube ──────────────────────────────
+            post {
+                success {
+                    mail to: 'eyakhadhraoui28@gmail.com',
+                         subject: "✅ SonarQube PASSED — ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: """\
+Bonjour,
+
+L'analyse SonarQube s'est terminée avec succès.
+
+• Job       : ${env.JOB_NAME}
+• Build     : #${env.BUILD_NUMBER}
+• Branche   : ${env.GIT_BRANCH ?: 'DEVOPS1'}
+• Résultat  : SUCCESS
+• Tableau   : ${env.BUILD_URL}
+
+Cordialement,
+Jenkins CI — KidneyCare Pipeline
+"""
+                }
+                failure {
+                    mail to: 'eyakhadhraoui28@gmail.com',
+                         subject: "❌ SonarQube FAILED — ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: """\
+Bonjour,
+
+L'analyse SonarQube a échoué.
+
+• Job       : ${env.JOB_NAME}
+• Build     : #${env.BUILD_NUMBER}
+• Branche   : ${env.GIT_BRANCH ?: 'DEVOPS1'}
+• Résultat  : FAILURE
+• Logs      : ${env.BUILD_URL}console
+
+Merci de vérifier les logs Jenkins pour identifier le problème.
+
+Cordialement,
+Jenkins CI — KidneyCare Pipeline
+"""
+                }
+            }
         }
 
         stage('Package JAR') {
@@ -162,7 +201,7 @@ pipeline {
             }
         }
 
-        // Build Angular sur l’agent (réseau Jenkins) — l’image Docker ne fait plus npm ci (évite ECONNRESET dans le daemon).
+        // Build Angular sur l'agent (réseau Jenkins) — l'image Docker ne fait plus npm ci (évite ECONNRESET dans le daemon).
         stage('Build frontend (Docker)') {
             steps {
                 sh 'bash scripts/jenkins-ensure-node-libatomic.sh'
@@ -174,9 +213,6 @@ pipeline {
         }
 
         // ─── DOCKER COMPOSE ───────────────────────────────────────────────────
-        // Images Spring Boot : Dockerfiles mono-étage — ils copient uniquement target/*.jar après
-        // « Package JAR ». Frontend : mon-projet/Dockerfile copie dist/ après le stage ci-dessus (pas de npm dans Docker).
-        // Si Docker n’est pas sur l’agent → étape ignorée. REQUIRE_DOCKER_COMPOSE=true pour échouer sans Docker.
         stage('Docker Compose Restart') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
@@ -185,7 +221,7 @@ pipeline {
                         if (!hasDocker) {
                             def require = env.REQUIRE_DOCKER_COMPOSE?.toString()?.equalsIgnoreCase('true')
                             echo '⚠️ Docker est absent sur cet agent : étape « Docker Compose Restart » ignorée.'
-                            echo 'Pour l’exécuter : utiliser un agent avec Docker (+ plugin compose v2 ou binaire docker-compose), ou un label du type « docker ».'
+                            echo 'Pour l\'exécuter : utiliser un agent avec Docker (+ plugin compose v2 ou binaire docker-compose), ou un label du type « docker ».'
                             if (require) {
                                 error('REQUIRE_DOCKER_COMPOSE=true mais docker introuvable dans le PATH.')
                             }
@@ -245,12 +281,8 @@ pipeline {
             }
         }
 
-        
-   
-
         // ─── KUBERNETES ───────────────────────────────────────────────────────
 
-        // Ordre : valider les YAML → vérifier l’accès cluster (ConfigMaps) → builds longs → apply → état.
         stage('Kubernetes — Valider manifests') {
             steps {
                 sh '''
@@ -290,7 +322,6 @@ pipeline {
             }
         }
 
-        // eval minikube docker-env : images visibles par le nœud Minikube sans registry (agent doit avoir minikube).
         stage('Kubernetes — Build images (Docker Minikube)') {
             steps {
                 sh '''
