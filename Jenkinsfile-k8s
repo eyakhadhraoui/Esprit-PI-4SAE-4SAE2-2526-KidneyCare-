@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'DEVOPS1',
+                    url: 'https://github.com/eyakhadhraoui/Esprit-PI-4SAE-4SAE2-2526-KidneyCare-.git'
+            }
+        }
+
+        stage('Kubernetes - Cluster Info') {
+            steps {
+                withCredentials([file(credentialsId: 'kidneycare-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        echo "=== Cluster Info ==="
+                        kubectl cluster-info
+
+                        echo "=== Nodes ==="
+                        kubectl get nodes -o wide
+                    '''
+                }
+            }
+        }
+
+        stage('Kubernetes - Deploy') {
+            steps {
+                withCredentials([file(credentialsId: 'kidneycare-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        echo "=== Deploy Kubernetes ==="
+                        kubectl apply -k k8s/
+                    '''
+                }
+            }
+        }
+
+        stage('Kubernetes - Check') {
+            steps {
+                withCredentials([file(credentialsId: 'kidneycare-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        echo "=== Pods ==="
+                        kubectl get pods -n kidneycare -o wide
+
+                        echo "=== Services ==="
+                        kubectl get svc -n kidneycare
+
+                        echo "=== Deployments ==="
+                        kubectl get deploy -n kidneycare
+                    '''
+                }
+            }
+        }
+    }
+}
