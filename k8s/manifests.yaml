@@ -1,0 +1,463 @@
+---
+# Namespace pour KidneyCare
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kidneycare
+  labels:
+    name: kidneycare
+---
+# ConfigMap - Variables de configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kidneycare-config
+  namespace: kidneycare
+data:
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  DATABASE_HOST: postgres-service
+  DATABASE_PORT: "5432"
+  EUREKA_SERVER_URL: http://eureka-service:8761
+  SPRING_PROFILES_ACTIVE: prod
+---
+# Secret - Informations sensibles (à remplacer)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kidneycare-secrets
+  namespace: kidneycare
+type: Opaque
+stringData:
+  DATABASE_PASSWORD: changeme
+  DATABASE_USER: kidneycare
+  JWT_SECRET: your-jwt-secret-key-change-this
+  KEYCLOAK_CLIENT_SECRET: your-keycloak-secret-change-this
+---
+# PVC - Stockage persistant pour uploads
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads-pvc
+  namespace: kidneycare
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# PVC - Stockage persistant pour database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: database-pvc
+  namespace: kidneycare
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Deployment - Eureka Server (Service Discovery)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: kidneycare
+  labels:
+    app: eureka-server
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+        version: v1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - eureka-server
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: eureka
+        image: kidneycare/eureka-server:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8761
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: JAVA_OPTS
+          value: "-Xmx512m -Xms256m -XX:+UseG1GC"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8761
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8761
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+---
+# Deployment - API Gateway
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: kidneycare
+  labels:
+    app: api-gateway
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        version: v1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - api-gateway
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: gateway
+        image: kidneycare/api-gateway:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: EUREKA_SERVER_URL
+        - name: JAVA_OPTS
+          value: "-Xmx512m -Xms256m -XX:+UseG1GC"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 40
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+---
+# Deployment - Microservices (exemple NEPHRO)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nephro-service
+  namespace: kidneycare
+  labels:
+    app: nephro-service
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: nephro-service
+  template:
+    metadata:
+      labels:
+        app: nephro-service
+        version: v1
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - nephro-service
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: nephro
+        image: kidneycare/nephro-service:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: DATABASE_HOST
+        - name: DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: DATABASE_PORT
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: kidneycare-secrets
+              key: DATABASE_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kidneycare-secrets
+              key: DATABASE_PASSWORD
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          valueFrom:
+            configMapKeyRef:
+              name: kidneycare-config
+              key: EUREKA_SERVER_URL
+        - name: JAVA_OPTS
+          value: "-Xmx512m -Xms256m -XX:+UseG1GC"
+        volumeMounts:
+        - name: uploads
+          mountPath: /app/uploads
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 40
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+      volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: uploads-pvc
+---
+# Service - Eureka Server
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-service
+  namespace: kidneycare
+  labels:
+    app: eureka-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8761
+    targetPort: 8761
+    protocol: TCP
+    name: http
+  selector:
+    app: eureka-server
+---
+# Service - API Gateway
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: kidneycare
+  labels:
+    app: api-gateway
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: api-gateway
+---
+# Service - NEPHRO
+apiVersion: v1
+kind: Service
+metadata:
+  name: nephro-service
+  namespace: kidneycare
+  labels:
+    app: nephro-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: http
+  selector:
+    app: nephro-service
+---
+# Ingress - Exposition externe
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kidneycare-ingress
+  namespace: kidneycare
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  tls:
+  - hosts:
+    - api.kidneycare.local
+    secretName: kidneycare-tls
+  rules:
+  - host: api.kidneycare.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway-service
+            port:
+              number: 80
+      - path: /nephro
+        pathType: Prefix
+        backend:
+          service:
+            name: nephro-service
+            port:
+              number: 8081
+      - path: /eureka
+        pathType: Prefix
+        backend:
+          service:
+            name: eureka-service
+            port:
+              number: 8761
+---
+# HorizontalPodAutoscaler - Auto-scaling (optionnel)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eureka-server-hpa
+  namespace: kidneycare
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: eureka-server
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

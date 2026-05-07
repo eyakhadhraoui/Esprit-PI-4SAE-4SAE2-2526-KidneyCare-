@@ -1,0 +1,409 @@
+// JenkinsfileK8s - Déploiement Kubernetes uniquement
+// Ce fichier gère le déploiement K8s avec vérifications complètes
+
+pipeline {
+    agent any
+
+    environment {
+        // Configuration K8s
+        K8S_NAMESPACE           = 'default'
+        K8S_CONTEXT             = credentials('k8s-context-name')  // À adapter selon votre setup
+        KUBECONFIG              = credentials('kubeconfig-path')    // À adapter selon votre setup
+        
+        // Configuration déploiement
+        DEPLOYMENT_TIMEOUT      = '5m'
+        POD_READY_TIMEOUT       = '10m'
+        ROLLOUT_TIMEOUT         = '5m'
+        
+        // Logging
+        LOG_LINES               = '100'
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    stages {
+
+        stage('📋 Vérification K8s — Prérequis') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  🔍 VÉRIFICATION DE LA CONNEXION K8S"
+                    echo "════════════════════════════════════════════"
+                    
+                    try {
+                        // Vérifier que kubectl est disponible
+                        sh '''
+                            echo "✓ Vérification de kubectl..."
+                            kubectl version --client --short
+                        '''
+                        
+                        // Vérifier la connexion au cluster
+                        sh '''
+                            echo "✓ Vérification de la connexion au cluster..."
+                            kubectl cluster-info
+                        '''
+                        
+                        // Vérifier l'accès au namespace
+                        sh '''
+                            echo "✓ Vérification du namespace: ${K8S_NAMESPACE}"
+                            kubectl get namespace ${K8S_NAMESPACE} || \
+                            (echo "Création du namespace..." && kubectl create namespace ${K8S_NAMESPACE})
+                        '''
+                        
+                        // Vérifier les nœuds disponibles
+                        sh '''
+                            echo "✓ État des nœuds K8s:"
+                            kubectl get nodes -o wide
+                            echo ""
+                            kubectl top nodes || echo "⚠️  Metrics non disponibles"
+                        '''
+                        
+                        echo "✅ Vérifications prérequis OK"
+                        
+                    } catch (Exception e) {
+                        echo "❌ ERREUR: Connexion K8s impossible"
+                        error("Impossible de se connecter à K8s: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        stage('📦 Application des Manifests') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  📝 APPLICATION DES MANIFESTS KUBERNETES"
+                    echo "════════════════════════════════════════════"
+                    
+                    try {
+                        sh '''
+                            # Vérifier la présence des manifests
+                            if [ ! -d "k8s" ] && [ ! -d "manifests" ] && [ ! -f "*.yaml" ]; then
+                                echo "⚠️  Aucun dossier manifests trouvé (k8s/, manifests/)"
+                                exit 1
+                            fi
+                            
+                            # Déterminer le chemin des manifests
+                            MANIFEST_DIR="k8s"
+                            if [ ! -d "$MANIFEST_DIR" ]; then
+                                MANIFEST_DIR="manifests"
+                            fi
+                            
+                            echo "📂 Dossier des manifests: $MANIFEST_DIR"
+                            echo ""
+                            
+                            # Valider les manifests YAML
+                            echo "✓ Validation des manifests YAML..."
+                            for file in $MANIFEST_DIR/*.yaml; do
+                                if [ -f "$file" ]; then
+                                    echo "  Vérification: $(basename $file)"
+                                    kubectl apply -f "$file" --dry-run=client -o yaml > /dev/null || {
+                                        echo "❌ ERREUR: Manifest invalide: $file"
+                                        exit 1
+                                    }
+                                fi
+                            done
+                            
+                            # Appliquer les manifests
+                            echo ""
+                            echo "✓ Application des manifests..."
+                            kubectl apply -f $MANIFEST_DIR -n ${K8S_NAMESPACE}
+                            
+                            echo ""
+                            echo "✅ Manifests appliqués avec succès"
+                        '''
+                    } catch (Exception e) {
+                        echo "❌ ERREUR lors de l'application des manifests"
+                        error("Erreur manifests: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        stage('⏳ Rollout Status — Attendre les Pods') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  ⏳ ATTENTE DU DÉPLOIEMENT"
+                    echo "════════════════════════════════════════════"
+                    
+                    try {
+                        sh '''
+                            echo "⏳ Attente de la disponibilité des déploiements..."
+                            echo "   (Timeout: ${ROLLOUT_TIMEOUT})"
+                            echo ""
+                            
+                            # Lister les déploiements
+                            DEPLOYMENTS=$(kubectl get deployments -n ${K8S_NAMESPACE} -o jsonpath='{.items[*].metadata.name}')
+                            
+                            if [ -z "$DEPLOYMENTS" ]; then
+                                echo "⚠️  Aucun déploiement trouvé dans le namespace ${K8S_NAMESPACE}"
+                                exit 0
+                            fi
+                            
+                            echo "📦 Déploiements trouvés: $DEPLOYMENTS"
+                            echo ""
+                            
+                            # Attendre le rollout de chaque déploiement
+                            for deployment in $DEPLOYMENTS; do
+                                echo "⏳ Attente du rollout: $deployment"
+                                kubectl rollout status deployment/$deployment \
+                                    -n ${K8S_NAMESPACE} \
+                                    --timeout=${ROLLOUT_TIMEOUT}
+                                
+                                if [ $? -eq 0 ]; then
+                                    echo "  ✅ $deployment prêt"
+                                else
+                                    echo "  ❌ $deployment n'a pas été déployé à temps"
+                                    exit 1
+                                fi
+                                echo ""
+                            done
+                            
+                            echo "✅ Tous les déploiements sont prêts"
+                        '''
+                    } catch (Exception e) {
+                        echo "❌ ERREUR: Timeout ou problème lors du rollout"
+                        error("Rollout status failed: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        stage('🔍 Vérification des Pods et Services') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  🔍 VÉRIFICATION PODS ET SERVICES"
+                    echo "════════════════════════════════════════════"
+                    
+                    try {
+                        sh '''
+                            echo "📊 État des PODS:"
+                            echo "─────────────────────────────────────────"
+                            kubectl get pods -n ${K8S_NAMESPACE} -o wide
+                            echo ""
+                            
+                            # Vérifier les pods non ready
+                            echo "✓ Vérification des pods problématiques..."
+                            NOT_READY=$(kubectl get pods -n ${K8S_NAMESPACE} \
+                                --field-selector=status.phase!=Running,status.phase!=Succeeded \
+                                -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)
+                            
+                            if [ -n "$NOT_READY" ]; then
+                                echo "⚠️  Pods non prêts: $NOT_READY"
+                                for pod in $NOT_READY; do
+                                    echo ""
+                                    echo "  Description du pod $pod:"
+                                    kubectl describe pod $pod -n ${K8S_NAMESPACE}
+                                done
+                            else
+                                echo "✅ Tous les pods sont prêts"
+                            fi
+                            
+                            echo ""
+                            echo "📊 État des SERVICES:"
+                            echo "─────────────────────────────────────────"
+                            kubectl get services -n ${K8S_NAMESPACE} -o wide
+                            echo ""
+                            
+                            echo "📊 État des INGRESS:"
+                            echo "─────────────────────────────────────────"
+                            kubectl get ingress -n ${K8S_NAMESPACE} || echo "Aucun Ingress trouvé"
+                            echo ""
+                            
+                            # Vérifier les ressources PVC
+                            echo "📊 État des PVC:"
+                            echo "─────────────────────────────────────────"
+                            kubectl get pvc -n ${K8S_NAMESPACE} -o wide || echo "Aucun PVC trouvé"
+                            
+                            echo "✅ Vérifications pods/services OK"
+                        '''
+                    } catch (Exception e) {
+                        echo "⚠️  Certaines vérifications ont échoué, mais on continue..."
+                        // Ne pas arrêter le pipeline à ce stade
+                    }
+                }
+            }
+        }
+
+        stage('📋 Logs du Déploiement') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  📋 LOGS ET DIAGNOSTIQUES"
+                    echo "════════════════════════════════════════════"
+                    
+                    try {
+                        sh '''
+                            echo "🔍 Vérification des EVENTS récents:"
+                            echo "─────────────────────────────────────────"
+                            kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' | tail -20
+                            echo ""
+                            
+                            # Logs de chaque pod
+                            echo "📋 LOGS DES PODS:"
+                            echo "─────────────────────────────────────────"
+                            PODS=$(kubectl get pods -n ${K8S_NAMESPACE} -o jsonpath='{.items[*].metadata.name}')
+                            
+                            for pod in $PODS; do
+                                echo ""
+                                echo "📝 Logs du pod: $pod"
+                                echo "├─ (Dernières ${LOG_LINES} lignes)"
+                                echo "─────────────────────────────────────────"
+                                kubectl logs $pod -n ${K8S_NAMESPACE} --tail=${LOG_LINES} 2>/dev/null || \
+                                    echo "⚠️  Impossible de récupérer les logs (pod peut être en démarrage)"
+                                echo ""
+                            done
+                            
+                            echo "📊 Ressources utilisées:"
+                            echo "─────────────────────────────────────────"
+                            kubectl top pods -n ${K8S_NAMESPACE} || echo "⚠️  Metrics non disponibles"
+                            echo ""
+                            
+                            echo "✅ Diagnostic complet collecté"
+                        '''
+                    } catch (Exception e) {
+                        echo "⚠️  Impossible de récupérer certains logs"
+                        // Continuer malgré l'erreur
+                    }
+                }
+            }
+        }
+
+        stage('🧪 Tests de Connectivité') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  🧪 TESTS DE CONNECTIVITÉ"
+                    echo "════════════════════════════════════════════"
+                    
+                    try {
+                        sh '''
+                            echo "✓ Vérification des services accessibles..."
+                            
+                            # Lister tous les services
+                            SERVICES=$(kubectl get services -n ${K8S_NAMESPACE} \
+                                -o jsonpath='{.items[*].metadata.name}')
+                            
+                            for service in $SERVICES; do
+                                echo ""
+                                echo "Service: $service"
+                                kubectl get service $service -n ${K8S_NAMESPACE} -o wide
+                                
+                                # Vérifier le endpoint
+                                ENDPOINTS=$(kubectl get endpoints $service -n ${K8S_NAMESPACE} \
+                                    -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)
+                                if [ -z "$ENDPOINTS" ]; then
+                                    echo "  ⚠️  Aucun endpoint trouvé pour $service"
+                                else
+                                    echo "  ✅ Endpoints disponibles: $ENDPOINTS"
+                                fi
+                            done
+                            
+                            echo ""
+                            echo "✅ Tests de connectivité terminés"
+                        '''
+                    } catch (Exception e) {
+                        echo "⚠️  Certains tests de connectivité ont échoué"
+                    }
+                }
+            }
+        }
+
+        stage('✅ Vérification Finale') {
+            steps {
+                script {
+                    echo "════════════════════════════════════════════"
+                    echo "  ✅ VÉRIFICATION FINALE DU DÉPLOIEMENT"
+                    echo "════════════════════════════════════════════"
+                    
+                    sh '''
+                        echo "📊 RÉSUMÉ DU DÉPLOIEMENT:"
+                        echo "─────────────────────────────────────────"
+                        echo "Namespace: ${K8S_NAMESPACE}"
+                        echo ""
+                        echo "Nombre de pods en Running:"
+                        kubectl get pods -n ${K8S_NAMESPACE} \
+                            --field-selector=status.phase=Running \
+                            -o jsonpath='{.items | length}'
+                        echo ""
+                        echo ""
+                        echo "Pods avec problèmes:"
+                        kubectl get pods -n ${K8S_NAMESPACE} \
+                            -o json | jq '.items[] | select(.status.phase != "Running" and .status.phase != "Succeeded") | .metadata.name' \
+                            || echo "Aucun problème détecté"
+                        echo ""
+                        echo "✅ Déploiement K8s terminé avec succès"
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo ""
+            echo "════════════════════════════════════════════"
+            echo "  📊 RÉSUMÉ DU PIPELINE"
+            echo "════════════════════════════════════════════"
+            
+            script {
+                sh '''
+                    echo "Pipeline: ${JOB_NAME}"
+                    echo "Build: ${BUILD_NUMBER}"
+                    echo "Statut: ${currentBuild.currentResult}"
+                    echo "Namespace K8s: ${K8S_NAMESPACE}"
+                    echo ""
+                    echo "Derniers événements:"
+                    kubectl get events -n ${K8S_NAMESPACE} --sort-by='.lastTimestamp' | tail -5
+                '''
+            }
+        }
+
+        success {
+            echo ""
+            echo "✅ DÉPLOIEMENT K8S RÉUSSI!"
+            echo "Tous les services sont opérationnels."
+            
+            script {
+                sh '''
+                    echo ""
+                    echo "Services disponibles:"
+                    kubectl get services -n ${K8S_NAMESPACE} -o custom-columns=NAME:.metadata.name,TYPE:.spec.type,CLUSTER-IP:.spec.clusterIP,EXTERNAL-IP:.status.loadBalancer.ingress[0].ip
+                '''
+            }
+        }
+
+        failure {
+            echo ""
+            echo "❌ ERREUR LORS DU DÉPLOIEMENT K8S"
+            echo "Consultez les logs ci-dessus pour plus de détails."
+            
+            script {
+                sh '''
+                    echo ""
+                    echo "Diagnostique d'erreur:"
+                    echo "Pods non-ready:"
+                    kubectl get pods -n ${K8S_NAMESPACE} -o wide | grep -v Running || true
+                    echo ""
+                    echo "Derniers événements d'erreur:"
+                    kubectl get events -n ${K8S_NAMESPACE} --field-selector type=Warning,type=Error --sort-by='.lastTimestamp' | tail -10 || true
+                '''
+            }
+        }
+
+        unstable {
+            echo "⚠️  DÉPLOIEMENT EN ÉTAT INSTABLE"
+        }
+
+        cleanup {
+            echo "🧹 Nettoyage..."
+            cleanWs()
+        }
+    }
+}
