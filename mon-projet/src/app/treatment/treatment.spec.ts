@@ -12,22 +12,25 @@ describe('TreatmentComponent', () => {
   let fixture: ComponentFixture<TreatmentComponent>;
   let httpMock: HttpTestingController;
 
+  const medicationMock = { getAllMedications: () => of([]) };
+  const prescriptionMock = {
+    getAll: () => of([]),
+    getAllItems: () => of([]),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [TreatmentComponent, HttpClientTestingModule],
       providers: [
         { provide: ConsultationService, useValue: { getPatients: () => of([]) } },
-        { provide: MedicationService, useValue: { getAllMedications: () => of([]) } },
-        {
-          provide: PrescriptionService,
-          useValue: {
-            getAll: () => of([]),
-            getAllItems: () => of([]),
-          },
-        },
-        { provide: AuthService, useValue: { isLoggedIn: () => false } },
+        { provide: MedicationService, useValue: medicationMock },
+        { provide: PrescriptionService, useValue: prescriptionMock },
+        { provide: AuthService, useValue: { isLoggedIn: () => false, logout: () => {} } },
       ],
-    }).compileComponents();
+    })
+      .overrideProvider(MedicationService, { useValue: medicationMock })
+      .overrideProvider(PrescriptionService, { useValue: prescriptionMock })
+      .compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
   });
@@ -39,9 +42,11 @@ describe('TreatmentComponent', () => {
   it('should create', async () => {
     fixture = TestBed.createComponent(TreatmentComponent);
     fixture.detectChanges();
-    httpMock
-      .expectOne((req) => req.url.includes('/prescription/api/medication-history'))
-      .flush([]);
+
+    // Toute requête HTTP vers prescription (si les services root n’étaient pas mockés) doit être flushée,
+    // sinon whenStable() ne se termine jamais (timeout 5s sur Jenkins / Vitest).
+    httpMock.match((req) => req.url.includes('/prescription/api')).forEach((req) => req.flush([]));
+
     await fixture.whenStable();
     expect(fixture.componentInstance).toBeTruthy();
   });
