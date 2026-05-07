@@ -7,6 +7,7 @@ export const options = {
 };
 
 export default function () {
-    http.get('http://host.docker.internal:9090');
+    const url = __ENV.BASE_URL || 'http://infection_app:8082';
+    http.get(url);
     sleep(1);
 }
