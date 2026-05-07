@@ -6,7 +6,6 @@ pipeline {
     }
 
     environment {
-        // Destinataire des notifications pipeline
         NOTIFY_EMAIL = 'eyakhadhraoui28@gmail.com'
     }
 
@@ -19,31 +18,25 @@ pipeline {
 
         stage('Build + Tests unitaires') {
             steps {
-                dir('DossierMedicale') {
-                    sh 'mvn -B clean test'
-                }
+                sh 'mvn -B clean test'
             }
             post {
                 always {
-                    junit allowEmptyResults: true, testResults: 'DossierMedicale/target/surefire-reports/*.xml'
+                    junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
                 }
             }
         }
 
         stage('Package JAR') {
             steps {
-                dir('DossierMedicale') {
-                    sh 'mvn -B package -DskipTests'
-                }
+                sh 'mvn -B package -DskipTests'
             }
         }
 
         stage('SonarQube') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    dir('DossierMedicale') {
-                        sh 'mvn -B sonar:sonar -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml'
-                    }
+                    sh 'mvn -B sonar:sonar -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml'
                 }
             }
         }
@@ -61,7 +54,7 @@ pipeline {
                     set +e
                     mkdir -p dependency-check-report dependency-check-data
                     docker run --rm \
-                      -v "$PWD/DossierMedicale:/src" \
+                      -v "$PWD:/src" \
                       -v "$PWD/dependency-check-data:/usr/share/dependency-check/data" \
                       -v "$PWD/dependency-check-report:/report" \
                       owasp/dependency-check:latest \
@@ -89,7 +82,7 @@ pipeline {
                     set +e
                     mkdir -p trivy-report
                     docker run --rm \
-                      -v "$PWD/DossierMedicale:/scan" \
+                      -v "$PWD:/scan" \
                       -v "$HOME/.cache/trivy:/root/.cache/" \
                       aquasec/trivy:latest fs \
                       --scanners vuln,secret,config \
@@ -105,7 +98,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts allowEmptyArchive: true, artifacts: 'dependency-check-report/**/*,DossierMedicale/trivy-report/**/*'
+            archiveArtifacts allowEmptyArchive: true, artifacts: 'dependency-check-report/**/*,trivy-report/**/*'
         }
         success {
             script {
@@ -113,12 +106,7 @@ pipeline {
                     emailext(
                         to: "${env.NOTIFY_EMAIL}",
                         subject: "[SUCCESS] DossierMedicale - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                        body: """Le pipeline DossierMedicale est passe avec succes.
-
-Job: ${env.JOB_NAME}
-Build: #${env.BUILD_NUMBER}
-URL: ${env.BUILD_URL}
-"""
+                        body: """Le pipeline DossierMedicale est passe avec succes.\n\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\nURL: ${env.BUILD_URL}"""
                     )
                 } catch (err) {
                     echo "Echec envoi email (SUCCESS): ${err}"
@@ -131,12 +119,7 @@ URL: ${env.BUILD_URL}
                     emailext(
                         to: "${env.NOTIFY_EMAIL}",
                         subject: "[FAILURE] DossierMedicale - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                        body: """Le pipeline DossierMedicale a echoue.
-
-Job: ${env.JOB_NAME}
-Build: #${env.BUILD_NUMBER}
-URL: ${env.BUILD_URL}
-"""
+                        body: """Le pipeline DossierMedicale a echoue.\n\nJob: ${env.JOB_NAME}\nBuild: #${env.BUILD_NUMBER}\nURL: ${env.BUILD_URL}"""
                     )
                 } catch (err) {
                     echo "Echec envoi email (FAILURE): ${err}"
