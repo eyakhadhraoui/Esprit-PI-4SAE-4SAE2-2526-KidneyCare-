@@ -1,0 +1,7 @@
+com\example\NEPHRO\NephroApplicationTests.class
+com\example\NEPHRO\mapper\PatientApiMapperTest.class
+com\example\NEPHRO\Repository\PatientRepositoryTest.class
+com\example\NEPHRO\Services\TestLaboratoireServiceTest.class
+com\example\NEPHRO\Services\DossierMedicalServiceTest.class
+com\example\NEPHRO\config\TestSecurityConfig.class
+com\kidneycare\testsupport\MysqlSpringBootSupport.class
