@@ -1,7 +1,7 @@
 pipeline {
     agent any
     
-    // Si votre installation a un autre nom, remplacez « NodeJS » ci-dessous par ce libellé.
+    
     tools {
         maven 'M2_HOME'
         nodejs 'NodeJS'
