@@ -174,49 +174,58 @@ pipeline {
 
         // ─── DOCKER COMPOSE ───────────────────────────────────────────────────
         // Les builds d’images utilisent le Node/Maven **des Dockerfiles**, pas l’outil Jenkins « NodeJS ».
-        // --build : rebuild des images ; en cas d’échec, voir la sortie du build au-dessus (post failure = logs runtime seulement).
+        // Si Docker n’est pas sur l’agent → étape ignorée (CI tests/Sonar sans daemon Docker).
+        // Pour forcer l’échec sans Docker : définir REQUIRE_DOCKER_COMPOSE=true sur le job.
         stage('Docker Compose Restart') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
-                    sh '''
-                        set -e
-                        command -v docker >/dev/null 2>&1 || { echo "ERROR: docker absent sur l’agent."; exit 1; }
-                        docker version
+                    script {
+                        def hasDocker = sh(script: 'command -v docker >/dev/null 2>&1', returnStatus: true) == 0
+                        if (!hasDocker) {
+                            def require = env.REQUIRE_DOCKER_COMPOSE?.toString()?.equalsIgnoreCase('true')
+                            echo '⚠️ Docker est absent sur cet agent : étape « Docker Compose Restart » ignorée.'
+                            echo 'Pour l’exécuter : utiliser un agent avec Docker (+ plugin compose v2 ou binaire docker-compose), ou un label du type « docker ».'
+                            if (require) {
+                                error('REQUIRE_DOCKER_COMPOSE=true mais docker introuvable dans le PATH.')
+                            }
+                            return
+                        }
+                        sh '''
+                            set -e
+                            docker version
 
-                        # Support both Docker Compose v2 plugin and legacy binary.
-                        if docker compose version >/dev/null 2>&1; then
-                          COMPOSE_CMD="docker compose"
-                        elif docker-compose version >/dev/null 2>&1; then
-                          COMPOSE_CMD="docker-compose"
-                        else
-                          echo "ERROR: Docker Compose is not installed on this Jenkins agent."
-                          exit 1
-                        fi
+                            if docker compose version >/dev/null 2>&1; then
+                              COMPOSE_CMD="docker compose"
+                            elif docker-compose version >/dev/null 2>&1; then
+                              COMPOSE_CMD="docker-compose"
+                            else
+                              echo "ERROR: Docker Compose is not installed on this Jenkins agent."
+                              exit 1
+                            fi
 
-                        echo "Using compose command: ${COMPOSE_CMD}"
-                        ${COMPOSE_CMD} version
+                            echo "Using compose command: ${COMPOSE_CMD}"
+                            ${COMPOSE_CMD} version
 
-                        # Accélère les builds : cache BuildKit + construction des services en parallèle
-                        export DOCKER_BUILDKIT=1
-                        export COMPOSE_DOCKER_CLI_BUILD=1
-                        export BUILDKIT_PROGRESS=plain
+                            export DOCKER_BUILDKIT=1
+                            export COMPOSE_DOCKER_CLI_BUILD=1
+                            export BUILDKIT_PROGRESS=plain
 
-                        echo ">>> compose config"
-                        ${COMPOSE_CMD} config >/dev/null
+                            echo ">>> compose config"
+                            ${COMPOSE_CMD} config >/dev/null
 
-                        echo ">>> compose down"
-                        ${COMPOSE_CMD} down --remove-orphans || true
+                            echo ">>> compose down"
+                            ${COMPOSE_CMD} down --remove-orphans || true
 
-                        # Build (parallèle : peut saturer la RAM sur un petit agent — réduire si OOM)
-                        echo ">>> compose build"
-                        ${COMPOSE_CMD} build --parallel
+                            echo ">>> compose build"
+                            ${COMPOSE_CMD} build --parallel
 
-                        echo ">>> compose up"
-                        ${COMPOSE_CMD} up -d --remove-orphans
+                            echo ">>> compose up"
+                            ${COMPOSE_CMD} up -d --remove-orphans
 
-                        echo ">>> compose ps"
-                        ${COMPOSE_CMD} ps
-                    '''
+                            echo ">>> compose ps"
+                            ${COMPOSE_CMD} ps
+                        '''
+                    }
                 }
             }
             post {
