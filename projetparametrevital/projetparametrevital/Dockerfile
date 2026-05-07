@@ -1,11 +1,12 @@
-# Stage 1: Build the application
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
-WORKDIR /app
-COPY . .
-RUN mvn -DskipTests package
+# Image runtime uniquement — le JAR est produit par Maven (CI / `mvn package`).
 
-# Stage 2: Run the application
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
+RUN apk add --no-cache curl
+COPY target/*.jar /tmp/jars/
+RUN set -e && \
+    J="$(ls /tmp/jars/*.jar | grep -v -- '-plain\.jar$' | head -n1)" && \
+    test -n "$J" || (echo "ERROR: aucun Spring Boot executable JAR dans target/ (voir *-plain.jar exclu)." >&2 && ls -la /tmp/jars >&2 && exit 1) && \
+    mv "$J" /app/app.jar && rm -rf /tmp/jars
+
 CMD ["java", "-jar", "app.jar"]
