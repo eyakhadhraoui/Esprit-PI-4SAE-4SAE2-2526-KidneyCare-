@@ -17,18 +17,18 @@ pipeline {
             }
         }
 
-        stage('Build + Tests unitaires') {
-            steps {
-                dir('DossierMedicale') {
-                    sh 'mvn -B clean test'
-                }
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: 'DossierMedicale/target/surefire-reports/*.xml'
-                }
-            }
+ stage('Build + Tests unitaires') {
+    steps {
+        dir('DossierMedicale') {
+            sh 'mvn -B clean test'
         }
+    }
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+        }
+    }
+}
 
         stage('Package JAR') {
             steps {
