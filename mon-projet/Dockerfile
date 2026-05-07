@@ -2,10 +2,12 @@
 # Dockerfile pour Frontend Angular
 # ============================================
 
-# Stage 1 : Build Angular
-FROM node:20-alpine AS builder
+# Stage 1 : Build Angular (bookworm-slim = glibc, moins de surprises CI qu’Alpine pour npm/ng)
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /build
+
+ENV NODE_OPTIONS=--max-old-space-size=6144
 
 # Copier les fichiers de configuration
 COPY package*.json ./

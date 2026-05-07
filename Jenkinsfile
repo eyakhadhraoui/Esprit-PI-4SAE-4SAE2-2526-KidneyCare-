@@ -173,12 +173,15 @@ pipeline {
         }
 
         // ─── DOCKER COMPOSE ───────────────────────────────────────────────────
-        // --build : force le rebuild des images avec les nouveaux JARs Maven
+        // Les builds d’images utilisent le Node/Maven **des Dockerfiles**, pas l’outil Jenkins « NodeJS ».
+        // --build : rebuild des images ; en cas d’échec, voir la sortie du build au-dessus (post failure = logs runtime seulement).
         stage('Docker Compose Restart') {
             steps {
                 timeout(time: 30, unit: 'MINUTES') {
                     sh '''
                         set -e
+                        command -v docker >/dev/null 2>&1 || { echo "ERROR: docker absent sur l’agent."; exit 1; }
+                        docker version
 
                         # Support both Docker Compose v2 plugin and legacy binary.
                         if docker compose version >/dev/null 2>&1; then
@@ -191,18 +194,27 @@ pipeline {
                         fi
 
                         echo "Using compose command: ${COMPOSE_CMD}"
+                        ${COMPOSE_CMD} version
 
                         # Accélère les builds : cache BuildKit + construction des services en parallèle
                         export DOCKER_BUILDKIT=1
                         export COMPOSE_DOCKER_CLI_BUILD=1
                         export BUILDKIT_PROGRESS=plain
 
+                        echo ">>> compose config"
                         ${COMPOSE_CMD} config >/dev/null
+
+                        echo ">>> compose down"
                         ${COMPOSE_CMD} down --remove-orphans || true
 
-                        # Build séparé (parallèle) puis démarrage — plus rapide que `up --build` tout-en-un
+                        # Build (parallèle : peut saturer la RAM sur un petit agent — réduire si OOM)
+                        echo ">>> compose build"
                         ${COMPOSE_CMD} build --parallel
+
+                        echo ">>> compose up"
                         ${COMPOSE_CMD} up -d --remove-orphans
+
+                        echo ">>> compose ps"
                         ${COMPOSE_CMD} ps
                     '''
                 }
@@ -212,10 +224,10 @@ pipeline {
                     sh '''
                         set +e
                         if docker compose version >/dev/null 2>&1; then
-                          docker compose ps
+                          docker compose ps -a
                           docker compose logs --tail=150
                         elif docker-compose version >/dev/null 2>&1; then
-                          docker-compose ps
+                          docker-compose ps -a
                           docker-compose logs --tail=150
                         fi
                     '''
